@@ -47,12 +47,14 @@ body{background:#060610;font-family:'Rajdhani',sans-serif;color:#d0d4e8}
 @keyframes flash-epic{0%,100%{box-shadow:0 0 12px #9c27b044,0 0 0 1.5px #6a1fa0}50%{box-shadow:0 0 26px #9c27b0cc,0 0 0 3px #cc6dff}}
 @keyframes flash-legendary{0%,100%{box-shadow:0 0 16px #ff980055,0 0 0 2px #b06000}50%{box-shadow:0 0 36px #ff9800ff,0 0 0 3.5px #ffc04a}}
 .sidebar{display:none!important}
-.bottom-nav{display:flex!important}
-.main-pad{padding-bottom:80px}
+.bottom-nav{display:block!important}
+.hamburger-btn{position:fixed;top:12px;left:12px;z-index:200;background:#0d0d22;border:1px solid #1a1a3a;border-radius:10px;color:#4fc3f7;font-size:22px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.5);}
+.hamburger-drawer{position:fixed;top:0;left:0;height:100vh;width:280px;background:#08081a;border-right:1px solid #12122a;z-index:160;transition:transform 0.3s ease;overflow-y:auto;padding-top:65px;}
+.hamburger-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:155;}
 @media(min-width:768px){
   .sidebar{display:flex!important}
   .bottom-nav{display:none!important}
-  .main-pad{padding-bottom:0}
+  .hamburger-btn{display:none!important}
 }
 input{background:#0a0a20;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:13px 16px;color:#e8e8f0;font-size:16px;font-family:'Rajdhani',sans-serif;outline:none;width:100%;letter-spacing:1px}
 input:focus{border-color:#4fc3f7}
@@ -84,10 +86,11 @@ input::placeholder{color:#7a82a0}
   .god-banner span:first-child { font-size: 10px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
 
   /* ── HEADER BAR ── */
-  .header-bar { padding: 8px 10px !important; }
+  .header-bar { padding: 8px 10px 8px 58px !important; }
   .header-bar > div:first-child div[style*="Orbitron"] { font-size: 16px !important; }
   .header-bar > div:first-child div[style*="monospace"] { font-size: 10px !important; }
   .header-signout-text { display: none !important; }
+  .header-signout-btn { display: none !important; }
   .header-bar button { font-size: 11px !important; padding: 5px 8px !important; }
   .header-bar span[style*="fontSize"] { font-size: 16px !important; }
 
@@ -1213,11 +1216,24 @@ function Sidebar({tab,setTab,selectedCard,collection,isGod=false}){
 }
 
 /* ── Bottom nav ── */
-function BottomNav({tab,setTab,selectedCard}){
-  const items=[{id:"home",icon:"🏠",l:"Home"},{id:"collection",icon:"📋",l:"Cards"},{id:"store",icon:"🛒",l:"Store"},{id:"quests",icon:"⚡",l:"Quests"},{id:"achievements",icon:"🏆",l:"Achievements"}];
+function BottomNav({tab,setTab,selectedCard,isGod=false,onLogout}){
+  const [open,setOpen]=useState(false);
+  const items=[{id:"home",icon:"🏠",l:"Home"},{id:"collection",icon:"📋",l:"Cards"},{id:"store",icon:"🛒",l:"Store"},{id:"quests",icon:"⚡",l:"Quests"},{id:"achievements",icon:"🏆",l:"Achievements"},...(isGod?[{id:"cms",icon:"✏️",l:"Card Editor"}]:[])];
   return(
-    <div className="bottom-nav" style={{position:"fixed",bottom:0,left:0,right:0,background:"linear-gradient(0deg,#060610 80%,transparent)",borderTop:"1px solid #12122a",justifyContent:"space-around",padding:"14px 0px 24px",zIndex:50}}>
-      {items.map(it=><button key={it.id} onClick={()=>setTab(it.id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",color:tab===it.id?"#4fc3f7":"#c8ccde",transition:"color 0.2s"}}><span style={{fontSize:"39px"}}>{it.icon}</span><span style={{fontFamily:"'Orbitron',monospace",fontSize:"18px",letterSpacing:"0.6px"}}>{it.l}</span></button>)}
+    <div className="bottom-nav">
+      <button className="hamburger-btn" onClick={()=>setOpen(o=>!o)} aria-label="Menu">
+        {open?"✕":"☰"}
+      </button>
+      {open&&<div className="hamburger-backdrop" onClick={()=>setOpen(false)}/>}
+      <div className="hamburger-drawer" style={{transform:open?"translateX(0)":"translateX(-100%)"}}>
+        <div style={{padding:"16px 24px 14px",borderBottom:"1px solid #12122a",marginBottom:"6px"}}>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:"18px",fontWeight:900,letterSpacing:"3px",color:"#4fc3f7"}}>MENU</div>
+        </div>
+        {items.map(it=><button key={it.id} onClick={()=>{setTab(it.id);setOpen(false);}} style={{display:"flex",alignItems:"center",gap:"16px",padding:"17px 24px",background:tab===it.id?"#4fc3f711":"transparent",border:"none",borderLeft:tab===it.id?"3px solid #4fc3f7":"3px solid transparent",color:tab===it.id?"#4fc3f7":"#d0d4e8",fontFamily:"'Rajdhani',sans-serif",fontSize:"22px",letterSpacing:"1px",cursor:"pointer",width:"100%",textAlign:"left",fontWeight:600}}><span style={{fontSize:"22px"}}>{it.icon}</span>{it.l}</button>)}
+        <div style={{padding:"16px 24px 0",borderTop:"1px solid #12122a",marginTop:"12px"}}>
+          <button onClick={()=>{onLogout();setOpen(false);}} style={{display:"flex",alignItems:"center",gap:"12px",padding:"14px 0",background:"transparent",border:"none",color:"#c8ccde",fontFamily:"'Rajdhani',sans-serif",fontSize:"20px",cursor:"pointer",width:"100%",letterSpacing:"1px",fontWeight:600}}>🚪 SIGN OUT</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1609,7 +1625,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
             <span style={{fontSize:"21px"}}>💎</span>
             <span style={{fontFamily:"'Orbitron',monospace",color:"#4fc3f7",fontWeight:700,fontSize:"28px"}}>{coins}</span>
           </div>
-          <button onClick={onLogout} title="Sign out" style={{background:"transparent",border:"1px solid #1a1a3a",borderRadius:"10px",padding:"8px 17px",color:"#c8ccde",cursor:"pointer",fontSize:"20px",display:"flex",alignItems:"center",gap:"8px",fontFamily:"'Rajdhani',sans-serif",fontWeight:600,letterSpacing:"1px"}}><span className="header-signout-text">🚪 </span>SIGN OUT</button>
+          <button onClick={onLogout} title="Sign out" className="header-signout-btn" style={{background:"transparent",border:"1px solid #1a1a3a",borderRadius:"10px",padding:"8px 17px",color:"#c8ccde",cursor:"pointer",fontSize:"20px",display:"flex",alignItems:"center",gap:"8px",fontFamily:"'Rajdhani',sans-serif",fontWeight:600,letterSpacing:"1px"}}><span className="header-signout-text">🚪 </span>SIGN OUT</button>
         </div>
       </div>
 
@@ -1640,18 +1656,18 @@ function Game({uid,username,initData,onLogout,isGod=false}){
                     const pct=xpNeeded>0?Math.min((xpInLevel/xpNeeded)*100,100):100;
                     return(<>
                       <div style={{display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap",marginBottom:"10px"}}>
-                        <div className="profile-level-badge" style={{background:"#4fc3f722",border:"1px solid #4fc3f755",borderRadius:"8px",padding:"4px 12px",fontFamily:"'Orbitron',monospace",fontSize:"14px",color:"#4fc3f7",fontWeight:700}}>
+                        <div className="profile-level-badge" style={{background:"#4fc3f722",border:"1px solid #4fc3f755",borderRadius:"8px",padding:"4px 12px",fontFamily:"'Orbitron',monospace",fontSize:"17px",color:"#4fc3f7",fontWeight:700}}>
                           ⭐ LEVEL {level}
                         </div>
-                        <div className="profile-cards-count" style={{fontSize:"14px",color:"#a0a8c0",fontFamily:"monospace"}}>
+                        <div className="profile-cards-count" style={{fontSize:"17px",color:"#a0a8c0",fontFamily:"monospace"}}>
                           {collection.length}/{ALL_CARDS.length} cards
                         </div>
                       </div>
                       <div>
                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:"6px"}}>
-                          <span className="profile-xp-text" style={{fontSize:"12px",color:"#a0a8c0",fontFamily:"monospace"}}>{xpInLevel.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
-                          {level<100&&<span className="profile-xp-text" style={{fontSize:"12px",color:"#4fc3f788",fontFamily:"monospace"}}>LVL {level+1}</span>}
-                          {level===100&&<span className="profile-xp-text" style={{fontSize:"12px",color:"#ff9800",fontFamily:"monospace"}}>MAX LEVEL</span>}
+                          <span className="profile-xp-text" style={{fontSize:"15px",color:"#a0a8c0",fontFamily:"monospace"}}>{xpInLevel.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
+                          {level<100&&<span className="profile-xp-text" style={{fontSize:"15px",color:"#4fc3f788",fontFamily:"monospace"}}>LVL {level+1}</span>}
+                          {level===100&&<span className="profile-xp-text" style={{fontSize:"15px",color:"#ff9800",fontFamily:"monospace"}}>MAX LEVEL</span>}
                         </div>
                         <div style={{height:"8px",background:"#0f0f24",borderRadius:"4px",border:"1px solid rgba(255,255,255,0.15)"}}>
                           <div style={{width:`${pct}%`,height:"100%",background:"linear-gradient(90deg,#4fc3f7,#00e5ff)",borderRadius:"4px",transition:"width 0.5s",boxShadow:"0 0 8px #4fc3f766"}}/>
@@ -2542,7 +2558,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
         document.body
       )}
 
-      <BottomNav tab={tab} setTab={setTab} selectedCard={selectedCard}/>
+      <BottomNav tab={tab} setTab={setTab} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>
       {openingPack&&<PackAnim cards={openingPack} onDone={onPackDone} packId={selectedPack} collection={collection}/>}
     </div>
   );
