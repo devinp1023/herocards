@@ -1656,18 +1656,18 @@ function Game({uid,username,initData,onLogout,isGod=false}){
                     const pct=xpNeeded>0?Math.min((xpInLevel/xpNeeded)*100,100):100;
                     return(<>
                       <div style={{display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap",marginBottom:"10px"}}>
-                        <div className="profile-level-badge" style={{background:"#4fc3f722",border:"1px solid #4fc3f755",borderRadius:"8px",padding:"4px 12px",fontFamily:"'Orbitron',monospace",fontSize:"17px",color:"#4fc3f7",fontWeight:700}}>
+                        <div className="profile-level-badge" style={{background:"#4fc3f722",border:"1px solid #4fc3f755",borderRadius:"8px",padding:"4px 12px",fontFamily:"'Orbitron',monospace",fontSize:"20px",color:"#4fc3f7",fontWeight:700}}>
                           ⭐ LEVEL {level}
                         </div>
-                        <div className="profile-cards-count" style={{fontSize:"17px",color:"#a0a8c0",fontFamily:"monospace"}}>
+                        <div className="profile-cards-count" style={{fontSize:"20px",color:"#a0a8c0",fontFamily:"monospace"}}>
                           {collection.length}/{ALL_CARDS.length} cards
                         </div>
                       </div>
                       <div>
                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:"6px"}}>
-                          <span className="profile-xp-text" style={{fontSize:"15px",color:"#a0a8c0",fontFamily:"monospace"}}>{xpInLevel.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
-                          {level<100&&<span className="profile-xp-text" style={{fontSize:"15px",color:"#4fc3f788",fontFamily:"monospace"}}>LVL {level+1}</span>}
-                          {level===100&&<span className="profile-xp-text" style={{fontSize:"15px",color:"#ff9800",fontFamily:"monospace"}}>MAX LEVEL</span>}
+                          <span className="profile-xp-text" style={{fontSize:"17px",color:"#a0a8c0",fontFamily:"monospace"}}>{xpInLevel.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
+                          {level<100&&<span className="profile-xp-text" style={{fontSize:"17px",color:"#4fc3f788",fontFamily:"monospace"}}>LVL {level+1}</span>}
+                          {level===100&&<span className="profile-xp-text" style={{fontSize:"17px",color:"#ff9800",fontFamily:"monospace"}}>MAX LEVEL</span>}
                         </div>
                         <div style={{height:"8px",background:"#0f0f24",borderRadius:"4px",border:"1px solid rgba(255,255,255,0.15)"}}>
                           <div style={{width:`${pct}%`,height:"100%",background:"linear-gradient(90deg,#4fc3f7,#00e5ff)",borderRadius:"4px",transition:"width 0.5s",boxShadow:"0 0 8px #4fc3f766"}}/>
