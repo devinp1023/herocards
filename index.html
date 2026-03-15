@@ -1927,7 +1927,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
 
                   {/* Card — fill inside fixed-width aspect-ratio container */}
                   <div className="detail-card" style={{flexShrink:0,width:"320px"}}>
-                    <div style={{position:"relative",width:"320px",aspectRatio:"201/290",borderRadius:"13px",overflow:"hidden",animation:card.rarity==="Legendary"?"legendaryFloat 3s ease-in-out infinite":card.rarity==="Epic"?"epicPulse 2.5s ease-in-out infinite":"none"}}>
+                    <div style={{position:"relative",width:"100%",aspectRatio:"201/290",borderRadius:"13px",overflow:"hidden",animation:card.rarity==="Legendary"?"legendaryFloat 3s ease-in-out infinite":card.rarity==="Epic"?"epicPulse 2.5s ease-in-out infinite":"none"}}>
                       <HeroCard card={card} size="normal" fill showShine/>
                     </div>
                   </div>
