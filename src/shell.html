@@ -197,7 +197,12 @@ input::placeholder{color:#7a82a0}
 @media(max-width:480px){ .battle-filter-drawer { width:100%; } }
 @media (max-width:768px) {
   .battle-card-grid { grid-template-columns:repeat(2,1fr); gap:8px; }
-  .battle-tray-fixed { bottom:60px; }
+  .battle-tray-fixed { bottom:0; }
+  .deck-builder-sticky { position:relative !important; top:auto !important; transform:none !important; }
+  .deck-slots-scroll { overflow-x:auto; flex-wrap:nowrap !important; padding-bottom:4px; }
+  .deck-slots-scroll::-webkit-scrollbar { height:3px; }
+  .deck-slots-scroll::-webkit-scrollbar-track { background:transparent; }
+  .deck-slots-scroll::-webkit-scrollbar-thumb { background:#2a2a4a; border-radius:2px; }
 }
 img{image-rendering:-webkit-optimize-contrast;}
 </style>

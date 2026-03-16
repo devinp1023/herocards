@@ -174,7 +174,7 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
     <div ref={containerRef} style={{paddingBottom:"200px"}}>
 
       {/* ── Sticky top: controls + deck slots ── */}
-      <div style={{position:"sticky",top:0,zIndex:20,background:"#060610",borderBottom:isSticky?"2px solid rgba(255,255,255,0.6)":"none"}}>
+      <div className="deck-builder-sticky" style={{position:"sticky",top:0,zIndex:100,background:"#060610",transform:"translateZ(0)",borderBottom:isSticky?"2px solid rgba(255,255,255,0.6)":"none"}}>
 
       {/* Top controls */}
       <div style={{padding:isSticky?"8px 20px 6px":"20px 20px 14px"}}>
@@ -206,7 +206,7 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
         <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#a0aac0",letterSpacing:"3px",marginBottom:"12px"}}>
           YOUR DECK · {battleDeck.length}/{DECK_SIZE}
         </div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:"8px"}}>
+        <div className="deck-slots-scroll" style={{display:"flex",flexWrap:"wrap",gap:"8px"}}>
           {Array.from({length:DECK_SIZE}).map((_,i)=>{
             const cardId=battleDeck[i];
             const card=cardId?(collection.find(c=>c.id===cardId)||ALL_CARDS.find(c=>c.id===cardId)):null;
@@ -263,7 +263,7 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
       </div>
 
       {/* ── Card grid — same layout as Collection ── */}
-      <div style={{padding:"29px 32px 0"}}>
+      <div style={{padding:"29px 32px 0",position:"relative",zIndex:0,isolation:"isolate"}}>
         {displayCards.length===0&&(
           <div style={{textAlign:"center",color:"#a8b0c8",padding:"97px 0",fontFamily:"'Orbitron',monospace",fontSize:"21px"}}>
             No matches found.

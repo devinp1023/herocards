@@ -307,7 +307,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
       {notification&&<div style={{position:"fixed",top:"18px",left:"50%",transform:"translateX(-50%)",background:"#0a0a20",border:`1px solid ${notification.color}`,color:notification.color,padding:"12px 23px",borderRadius:"23px",fontFamily:"'Orbitron',monospace",fontSize:"17px",zIndex:400,animation:"slideDown 0.3s ease-out",whiteSpace:"nowrap",boxShadow:`0 4px 20px ${notification.color}44`}}>{notification.msg}</div>}
 
       {/* Header */}
-      <div className="header-bar" style={{background:"linear-gradient(180deg,#0d0d22,#060610)",padding:"17px 29px",borderBottom:"1px solid #0f0f24",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:50}}>
+      <div className="header-bar" style={{background:"linear-gradient(180deg,#0d0d22,#060610)",padding:"17px 29px",borderBottom:"1px solid #0f0f24",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:300,transform:"translateZ(0)"}}>
         <div>
           <div style={{fontFamily:"'Orbitron',monospace",fontSize:"34px",fontWeight:900,letterSpacing:"3.4px",color:"#4fc3f7",animation:"glow 3s ease-in-out infinite"}}>HERO CARDS</div>
           <div style={{fontSize:"18px",color:"#c8ccde",letterSpacing:"2.3px",fontFamily:"monospace",display:"flex",alignItems:"center",gap:"10px"}}>
@@ -325,9 +325,9 @@ function Game({uid,username,initData,onLogout,isGod=false}){
         </div>
       </div>
 
-      <div style={{display:"flex",height:"calc(100vh - 57px)"}}>
+      <div style={{display:"flex",height:`calc(100vh - ${isGod?86:57}px)`}}>
         <Sidebar tab={tab} setTab={setTabPersist} selectedCard={selectedCard} collection={collection} isGod={isGod}/>
-        <div className="main-pad" style={{flex:1,overflowY:"auto",height:"100%"}}>
+        <div className="main-pad" style={{flex:1,overflowY:"auto",height:"100%",isolation:"isolate"}}>
 
           {/* HOME */}
           {tab==="home"&&!showPackSelect&&(
