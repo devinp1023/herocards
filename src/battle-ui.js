@@ -81,6 +81,8 @@ function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFil
 /* ── DeckBuilder ── */
 function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityFilter,sortBy,setSortBy,search,setSearch,packFilter,setPackFilter,rarities,types,battleDeck,setBattleDeck,battleTier,setBattleTier,battleCooldowns,onStartBattle,notify}){
 
+  const [hoveredSlot,setHoveredSlot]=useState(null);
+
   // Count selected cards by rarity
   const rarityCounts=(()=>{
     const counts={Legendary:0,Epic:0,Rare:0,Uncommon:0,Common:0};
@@ -223,6 +225,48 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
         </div>
       </div>
 
+      {/* ── Deck Slots — 5×2 grid of card placeholders ── */}
+      <div style={{padding:"16px 32px 20px",borderBottom:"1px solid #0f0f24"}}>
+        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#303858",letterSpacing:"3px",marginBottom:"12px"}}>
+          YOUR DECK · {battleDeck.length}/{DECK_SIZE}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:"8px"}}>
+          {Array.from({length:DECK_SIZE}).map((_,i)=>{
+            const cardId=battleDeck[i];
+            const card=cardId?(collection.find(c=>c.id===cardId)||ALL_CARDS.find(c=>c.id===cardId)):null;
+            const onCd=card?isCardOnCooldown(card.id,battleCooldowns):false;
+
+            if(card){
+              return(
+                <div key={i} style={{position:"relative",cursor:"pointer"}}
+                  onMouseEnter={()=>setHoveredSlot(i)}
+                  onMouseLeave={()=>setHoveredSlot(null)}
+                  onClick={()=>toggleCard(card)}
+                >
+                  <CardWrapper rarity={card.rarity}>
+                    <HeroCard card={card} size="normal" fill/>
+                    {onCd&&(
+                      <div style={{position:"absolute",inset:0,background:"rgba(6,6,16,0.7)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",borderRadius:"13px"}}>⏱️</div>
+                    )}
+                    {hoveredSlot===i&&(
+                      <div style={{position:"absolute",inset:0,background:"rgba(6,6,16,0.78)",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"13px",pointerEvents:"none"}}>
+                        <div style={{color:"#ef5350",fontFamily:"'Orbitron',monospace",fontSize:"10px",fontWeight:900,letterSpacing:"1px",textAlign:"center",lineHeight:1.6}}>✕<br/>REMOVE</div>
+                      </div>
+                    )}
+                  </CardWrapper>
+                </div>
+              );
+            }
+
+            return(
+              <div key={i} style={{aspectRatio:"201/290",border:"1.5px dashed #151f3a",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",background:"transparent",color:"#1e2a40",fontFamily:"monospace",fontSize:"18px",fontWeight:700}}>
+                {i+1}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── Card grid — same layout as Collection ── */}
       <div style={{padding:"29px 32px 0"}}>
         {displayCards.length===0&&(
@@ -276,34 +320,6 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
 
       {/* ── Fixed tray — always visible ── */}
       <div className="battle-tray-fixed" style={{background:"#08081a",borderTop:"1px solid #12122a",padding:"10px 16px 12px"}}>
-
-        {/* 10 deck slots */}
-        <div style={{display:"flex",gap:"5px",overflowX:"auto",marginBottom:"9px",paddingBottom:"2px"}}>
-          {Array.from({length:DECK_SIZE}).map((_,i)=>{
-            const cardId=battleDeck[i];
-            const card=cardId?(collection.find(c=>c.id===cardId)||ALL_CARDS.find(c=>c.id===cardId)):null;
-            const onCd=card?isCardOnCooldown(card.id,battleCooldowns):false;
-            const cfg=card?RC[card.rarity]:null;
-            return(
-              <div key={i}
-                onClick={()=>card&&setBattleDeck(prev=>prev.filter(id=>id!==card.id))}
-                title={card?`Remove ${card.name}`:`Slot ${i+1}`}
-                style={{flexShrink:0,width:"40px",height:"54px",borderRadius:"7px",overflow:"hidden",border:card?(onCd?"1px solid #ef535044":`1px solid ${cfg.color}55`):"1px dashed #1a1a3a",background:card?`${cfg.color}11`:"#0a0a1e",display:"flex",alignItems:"center",justifyContent:"center",cursor:card?"pointer":"default",position:"relative",transition:"border-color 0.15s"}}
-                onMouseEnter={e=>{if(card)e.currentTarget.style.borderColor="#ef5350aa";}}
-                onMouseLeave={e=>{if(card)e.currentTarget.style.borderColor=onCd?"#ef535044":`${cfg.color}55`;}}
-              >
-                {card?(
-                  <>
-                    <div style={{fontSize:"20px",lineHeight:1}}>{card.emoji}</div>
-                    {onCd&&<div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"14px"}}>⏱️</div>}
-                  </>
-                ):(
-                  <div style={{fontFamily:"monospace",fontSize:"13px",color:"#1a1a3a",fontWeight:700}}>{i+1}</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
 
         {/* Start battle button */}
         <button
