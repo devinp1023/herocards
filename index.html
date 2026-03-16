@@ -3443,9 +3443,33 @@ function HpBar({hp,maxHp,color="#4fc3f7"}){
 }
 
 /* ── FaceDownCard ── */
-function FaceDownCard({small}){
+function FaceDownCard({small,large}){
+  const w=small?20:large?80:100;
+  const h=small?29:large?115:145;
+  const r=small?3:large?10:13;
   return(
-    <div style={{width:small?"20px":"30px",height:small?"29px":"43px",borderRadius:"4px",background:"linear-gradient(135deg,#1a1a40,#2a2a5a)",border:"1px solid #2a2a6a",flexShrink:0}}/>
+    <div style={{width:`${w}px`,height:`${h}px`,borderRadius:`${r}px`,flexShrink:0,position:"relative",overflow:"hidden",
+      background:"linear-gradient(145deg,#0a0a1e 0%,#12122e 40%,#0d0d28 100%)",
+      border:"1px solid #3a2a6a",
+    }}>
+      {/* Hex tile pattern */}
+      <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.15}} xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id={`hex-${small?"s":"r"}`} x="0" y="0" width="10" height="11" patternUnits="userSpaceOnUse">
+            <polygon points="5,0.8 8.5,2.8 8.5,7.2 5,9.2 1.5,7.2 1.5,2.8" fill="none" stroke="#8866ff" strokeWidth="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#hex-${small?"s":"r"})`}/>
+      </svg>
+      {/* Radial glow */}
+      <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 50% 50%,#4a2a8a44 0%,transparent 70%)"}}/>
+      {/* Centre hero emoji */}
+      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <span style={{fontSize:small?"7px":large?"28px":"36px",filter:"drop-shadow(0 0 3px #aa66ff)",lineHeight:1}}>🦸</span>
+      </div>
+      {/* Shimmer */}
+      <div style={{position:"absolute",inset:0,background:"linear-gradient(105deg,transparent 35%,rgba(150,100,255,0.1) 50%,transparent 65%)",animation:"shimmer 2.5s ease-in-out infinite"}}/>
+    </div>
   );
 }
 
@@ -3587,77 +3611,97 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
     <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#060610",overflow:"hidden"}}>
 
       {/* ── AI zone ── */}
-      <div style={{flexShrink:0,padding:"10px 16px 8px",background:"#080818",borderBottom:"1px solid #0f0f24"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"6px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-            <span style={{fontSize:"24px"}}>{tierInfo.avatar}</span>
-            <div>
-              <div style={{fontFamily:"'Orbitron',monospace",fontSize:"15px",fontWeight:900,color:tierInfo.color,letterSpacing:"1px"}}>{tierInfo.emoji} {tierInfo.name.toUpperCase()}</div>
-              <div style={{fontFamily:"'Orbitron',monospace",fontSize:"13px",fontWeight:700,color:"#c0c8e0",letterSpacing:"1px"}}>ROUND {roundNum}</div>
-            </div>
+      <div style={{flexShrink:0,padding:"10px 16px 20px",background:"#080818",borderBottom:"1px solid #0f0f24"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
+          <span style={{fontSize:"24px"}}>{tierInfo.avatar}</span>
+          <div>
+            <div style={{fontFamily:"'Orbitron',monospace",fontSize:"15px",fontWeight:900,color:tierInfo.color,letterSpacing:"1px"}}>{tierInfo.emoji} {tierInfo.name.toUpperCase()}</div>
+            <div style={{fontFamily:"'Orbitron',monospace",fontSize:"13px",fontWeight:700,color:"#c0c8e0",letterSpacing:"1px"}}>ROUND {roundNum}</div>
           </div>
-          <div style={{fontFamily:"'Orbitron',monospace",fontSize:"13px",fontWeight:700,color:"#a0aac0",letterSpacing:"0.5px"}}>🃏 {a.hand.length} &nbsp;📚 {a.deck.length}</div>
         </div>
-        <div style={{display:"flex",gap:"4px",alignItems:"center"}}>
-          {a.hand.map((_,i)=><FaceDownCard key={i}/>)}
-          {a.deck.length>0&&<><div style={{width:"1px",height:"24px",background:"#1a1a3a",margin:"0 4px"}}/>{Array.from({length:Math.min(a.deck.length,5)}).map((_,i)=><FaceDownCard key={`d${i}`} small/>)}{a.deck.length>5&&<span style={{fontFamily:"monospace",fontSize:"10px",color:"#303050"}}>+{a.deck.length-5}</span>}</>}
+        {/* Hand (centered, scrollable) + deck pushed to far right */}
+        <div style={{display:"flex",alignItems:"flex-end",gap:"10px"}}>
+          <div style={{flex:1,display:"flex",gap:"6px",alignItems:"center",justifyContent:"center",overflowX:"auto",paddingBottom:"2px"}}>
+            {a.hand.map((_,i)=><FaceDownCard key={i}/>)}
+            {a.hand.length===0&&<span style={{color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>—</span>}
+          </div>
+          {a.deck.length>0&&(
+            <div style={{flexShrink:0,position:"relative"}}>
+              <FaceDownCard large/>
+              <div style={{position:"absolute",bottom:"2px",right:"-4px",background:"#12122e",border:"1px solid #3a2a6a",borderRadius:"4px",padding:"0 3px",fontFamily:"'Orbitron',monospace",fontSize:"8px",fontWeight:700,color:"#9966ff",lineHeight:"13px",minWidth:"13px",textAlign:"center"}}>{a.deck.length}</div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── Combat zone ── */}
-      <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"space-around",padding:"12px 16px",gap:"8px",minHeight:0}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"10px 16px",gap:"6px",minHeight:0}}>
 
         {/* AI active */}
-        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",flex:1,minWidth:0}}>
-          <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",fontWeight:700,color:"#a0aac0",letterSpacing:"2px"}}>OPPONENT</div>
-          {a.active?(
-            <>
-              <div style={{width:"120px","--sidebar-w":"calc(100vw - 120px)","--card-col":"1"}}>
-                <CardWrapper rarity={a.active.rarity}><HeroCard card={a.active} size="normal" fill/></CardWrapper>
-              </div>
-              <HpBar hp={a.active.hp} maxHp={a.active.maxHp} color="#ef5350"/>
-              {mult!==null&&<div style={{fontFamily:"monospace",fontSize:"10px",letterSpacing:"0.5px",color:mult===1.5?"#ef5350":mult===0.75?"#4caf50":"#404060"}}>{mult===1.5?"▲ STRONG vs you":mult===0.75?"▼ WEAK vs you":"— NEUTRAL"}</div>}
-            </>
-          ):(
-            <div style={{width:"120px",height:"173px",border:"2px dashed #ef535033",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>DEFEATED</div>
-          )}
+        <div style={{display:"flex",flexDirection:"row",alignItems:"center",gap:"12px",width:"100%",justifyContent:"center"}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",width:"140px"}}>
+            <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",fontWeight:700,color:"#a0aac0",letterSpacing:"2px"}}>OPPONENT</div>
+            {a.active?(
+              <>
+                <div style={{width:"190px","--sidebar-w":"calc(100vw - 190px)","--card-col":"1"}}>
+                  <CardWrapper rarity={a.active.rarity}><HeroCard card={a.active} size="normal" fill/></CardWrapper>
+                </div>
+                <HpBar hp={a.active.hp} maxHp={a.active.maxHp} color="#ef5350"/>
+                {mult!==null&&<div style={{fontFamily:"monospace",fontSize:"10px",letterSpacing:"0.5px",color:mult===1.5?"#ef5350":mult===0.75?"#4caf50":"#404060"}}>{mult===1.5?"▲ STRONG vs you":mult===0.75?"▼ WEAK vs you":"— NEUTRAL"}</div>}
+              </>
+            ):(
+              <div style={{width:"190px",height:"274px",border:"2px dashed #ef535033",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>DEFEATED</div>
+            )}
+          </div>
         </div>
 
-        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"26px",fontWeight:900,color:"#4fc3f7",flexShrink:0,userSelect:"none",textShadow:"0 0 12px #4fc3f788"}}>VS</div>
+        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"22px",fontWeight:900,color:"#4fc3f7",userSelect:"none",textShadow:"0 0 12px #4fc3f788",letterSpacing:"4px"}}>— VS —</div>
 
         {/* Player active */}
-        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",flex:1,minWidth:0}}>
-          <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",fontWeight:700,color:"#4fc3f7",letterSpacing:"2px"}}>YOU</div>
-          {p.active?(
-            <>
-              <div style={{width:"120px","--sidebar-w":"calc(100vw - 120px)","--card-col":"1"}}>
-                <CardWrapper rarity={p.active.rarity}><HeroCard card={p.active} size="normal" fill/></CardWrapper>
-              </div>
-              <HpBar hp={p.active.hp} maxHp={p.active.maxHp} color="#4fc3f7"/>
-              {mult!==null&&<div style={{fontFamily:"monospace",fontSize:"10px",letterSpacing:"0.5px",color:mult===1.5?"#4caf50":mult===0.75?"#ef5350":"#404060"}}>{mult===1.5?"▲ STRONG vs them":mult===0.75?"▼ WEAK vs them":"— NEUTRAL"}</div>}
-            </>
-          ):(
-            <div style={{width:"120px",height:"173px",border:"2px dashed #4fc3f733",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>SELECT →</div>
-          )}
+        <div style={{display:"flex",flexDirection:"row",alignItems:"center",gap:"12px",width:"100%",justifyContent:"center"}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",width:"140px"}}>
+            <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",fontWeight:700,color:"#4fc3f7",letterSpacing:"2px"}}>YOU</div>
+            {p.active?(
+              <>
+                <div style={{width:"190px","--sidebar-w":"calc(100vw - 190px)","--card-col":"1"}}>
+                  <CardWrapper rarity={p.active.rarity}><HeroCard card={p.active} size="normal" fill/></CardWrapper>
+                </div>
+                <HpBar hp={p.active.hp} maxHp={p.active.maxHp} color="#4fc3f7"/>
+                {mult!==null&&<div style={{fontFamily:"monospace",fontSize:"10px",letterSpacing:"0.5px",color:mult===1.5?"#4caf50":mult===0.75?"#ef5350":"#404060"}}>{mult===1.5?"▲ STRONG vs them":mult===0.75?"▼ WEAK vs them":"— NEUTRAL"}</div>}
+              </>
+            ):(
+              <div style={{width:"190px",height:"274px",border:"2px dashed #4fc3f733",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>SELECT →</div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ── Player hand ── */}
       <div style={{flexShrink:0,background:"#080818",borderTop:"1px solid #0f0f24",padding:"8px 12px 10px"}}>
         <div style={{fontFamily:"'Orbitron',monospace",fontSize:"13px",fontWeight:700,color:"#c0c8e0",letterSpacing:"1px",marginBottom:"6px"}}>
-          YOUR HAND · {p.hand.length} &nbsp;·&nbsp; 📚 {p.deck.length} in deck
+          YOUR HAND · {p.hand.length}
         </div>
-        <div style={{display:"flex",gap:"8px",overflowX:"auto",paddingBottom:"2px"}}>
-          {p.hand.map(card=>(
-            <div key={card.id} onClick={needSelect?()=>handleSelectCard(card):undefined}
-              style={{width:"72px",flexShrink:0,cursor:needSelect?"pointer":"default",borderRadius:"9px",
-                outline:needSelect?"2px solid #4fc3f7":"none",outlineOffset:"2px",
-                opacity:needSelect?1:0.55,transition:"opacity 0.2s,outline 0.2s",
-                "--sidebar-w":"calc(100vw - 72px)","--card-col":"1"}}>
-              <CardWrapper rarity={card.rarity}><HeroCard card={card} size="normal" fill/></CardWrapper>
+        <div style={{display:"flex",alignItems:"flex-end",gap:"10px"}}>
+          {/* Hand — centered, scrollable */}
+          <div style={{flex:1,display:"flex",gap:"8px",overflowX:"auto",paddingBottom:"2px",justifyContent:"center"}}>
+            {p.hand.map(card=>(
+              <div key={card.id} onClick={needSelect?()=>handleSelectCard(card):undefined}
+                style={{width:"100px",flexShrink:0,cursor:needSelect?"pointer":"default",borderRadius:"9px",
+                  outline:needSelect?"2px solid #4fc3f7":"none",outlineOffset:"2px",
+                  opacity:needSelect?1:0.55,transition:"opacity 0.2s,outline 0.2s",
+                  "--sidebar-w":"calc(100vw - 100px)","--card-col":"1"}}>
+                <CardWrapper rarity={card.rarity}><HeroCard card={card} size="normal" fill/></CardWrapper>
+              </div>
+            ))}
+            {p.hand.length===0&&<div style={{color:"#303050",fontFamily:"monospace",fontSize:"12px",padding:"10px 0"}}>No cards in hand</div>}
+          </div>
+          {/* Deck — single card image on right */}
+          {p.deck.length>0&&(
+            <div style={{flexShrink:0,position:"relative"}}>
+              <FaceDownCard large/>
+              <div style={{position:"absolute",bottom:"-4px",right:"-4px",background:"#12122e",border:"1px solid #3a2a6a",borderRadius:"4px",padding:"0 3px",fontFamily:"'Orbitron',monospace",fontSize:"8px",fontWeight:700,color:"#9966ff",lineHeight:"13px",minWidth:"13px",textAlign:"center"}}>{p.deck.length}</div>
             </div>
-          ))}
-          {p.hand.length===0&&<div style={{color:"#303050",fontFamily:"monospace",fontSize:"12px",padding:"10px 0"}}>No cards in hand</div>}
+          )}
         </div>
       </div>
 
@@ -3692,9 +3736,22 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
 
 /* ── BattleTab — orchestrates screens ── */
 function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFilter,sortBy,setSortBy,search,setSearch,packFilter,setPackFilter,rarities,types,battleDeck,setBattleDeck,battleTier,setBattleTier,battleCooldowns,onBattleComplete,notify,gainXp,isGod,onBattlingChange}){
-  const [screen,setScreen]=useState('builder');
+  const [screen,setScreen]=useState(()=>sessionStorage.getItem('hc_battleScreen')||'builder');
   const [battleResult,setBattleResult]=useState(null);
-  const [battleSetup,setBattleSetup]=useState(null);
+  const [battleSetup,setBattleSetup]=useState(()=>{
+    try{ return JSON.parse(sessionStorage.getItem('hc_battleSetup')||'null'); }catch{ return null; }
+  });
+
+  // Persist battle screen + setup so a page refresh lands back in the battle
+  useEffect(()=>{
+    if(screen==='battle'&&battleSetup){
+      sessionStorage.setItem('hc_battleScreen','battle');
+      sessionStorage.setItem('hc_battleSetup',JSON.stringify(battleSetup));
+    } else {
+      sessionStorage.removeItem('hc_battleScreen');
+      sessionStorage.removeItem('hc_battleSetup');
+    }
+  },[screen,battleSetup]);
 
   // Signal parent when entering/leaving live battle
   useEffect(()=>{
