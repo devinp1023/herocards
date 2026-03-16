@@ -141,8 +141,8 @@ input::placeholder{color:#7a82a0}
 
   /* ── PACK OPENING ── */
   .pack-title { font-size: 22px !important; }
-  .pack-card-area { width: min(210px, 68vw) !important; height: auto !important; overflow: visible !important; }
-  .pack-card-inner { width: min(210px, 68vw) !important; height: auto !important; }
+  .pack-card-area { width: min(210px, 68vw) !important; aspect-ratio: 201/290 !important; overflow: visible !important; }
+  .pack-card-inner { width: 100% !important; }
 
   /* ── STORE ── */
   .page-pad { padding: 12px 10px !important; max-width: 100% !important; }
@@ -480,7 +480,7 @@ function HeroCard({card,size="normal",onClick,selected,showShine=false,fill=fals
   const rarityDur={Common:"3s",Uncommon:"2.5s",Rare:"2s",Epic:"1.5s",Legendary:"1s"}[card.rarity];
   const idleAnim=""; // idle animations applied to wrapper instead
 
-  const showStats=size!=="tiny"&&size!=="small";
+  const showStats=size!=="tiny";
   const showAlliance=size!=="tiny";
   const imgSrc=card.imageUrl||null;
 
@@ -678,10 +678,11 @@ function playRaritySound(rarity){
   }catch(e){}
 }
 
-function PackAnim({cards,onDone,packId,collection}){
+function PackAnim({cards,onDone,packId,collection,onTradeDupes}){
   const [current,setCurrent]=useState(0);
   const [flipped,setFlipped]=useState(false);
   const [flashColor,setFlashColor]=useState(null);
+  const [traded,setTraded]=useState(false);
   const done=current>=cards.length;
   const card=cards[current];
 
@@ -744,7 +745,7 @@ function PackAnim({cards,onDone,packId,collection}){
         </div>
 
         {/* Card face — hidden until flipped */}
-        <div className="pack-card-area" style={{position:"relative",width:"281px",height:"377px"}}>
+        <div className="pack-card-area" style={{position:"relative",width:"281px",aspectRatio:"201/290"}}>
           {!flipped&&(
             <div style={{
               position:"absolute",inset:0,borderRadius:"20px",overflow:"hidden",
@@ -864,24 +865,24 @@ function PackAnim({cards,onDone,packId,collection}){
           const dupes=cards.filter(c=>collection.some(col=>col.id===c.id));
           const totalDupeCredits=dupes.reduce((sum,c)=>sum+DUPE_CREDITS[c.rarity],0);
           return(<>
-            <div style={{display:"flex",flexDirection:"row",flexWrap:"wrap",gap:"20px",justifyContent:"center",maxWidth:"700px",padding:"0 20px"}}>
+            <div style={{display:"flex",flexDirection:"row",flexWrap:"wrap",gap:"12px",justifyContent:"center",maxWidth:"700px",padding:"0 20px"}}>
               {cards.map((c,i)=>{
                 const isDupe=collection.some(col=>col.id===c.id);
                 return(
-                  <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"8px",position:"relative"}}>
-                    <HeroCard card={c} size="small" showShine={["Legendary","Epic","Rare"].includes(c.rarity)&&!isDupe}/>
+                  <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"6px"}}>
                     {isDupe&&(
-                      <div style={{position:"absolute",top:"6px",left:"50%",transform:"translateX(-50%)",background:"#ff6b35ee",borderRadius:"6px",padding:"3px 10px",fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#fff",fontWeight:700,letterSpacing:"1px",whiteSpace:"nowrap"}}>DUPE</div>
+                      <div style={{background:"#ff6b35ee",borderRadius:"6px",padding:"3px 10px",fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#fff",fontWeight:700,letterSpacing:"1px",whiteSpace:"nowrap"}}>DUPE</div>
                     )}
+                    <HeroCard card={c} size="small" showShine={["Legendary","Epic","Rare"].includes(c.rarity)&&!isDupe}/>
                     <span style={{fontFamily:"'Orbitron',monospace",fontSize:"14px",color:isDupe?"#ff6b35":RC[c.rarity].color}}>{isDupe?`+${DUPE_CREDITS[c.rarity]}💎`:c.rarity[0]}</span>
                   </div>
                 );
               })}
             </div>
             {totalDupeCredits>0&&(
-              <div style={{background:"#1a0f08",border:"1px solid #ff6b3566",borderRadius:"14px",padding:"14px 34px",fontFamily:"'Orbitron',monospace",fontSize:"18px",color:"#ffa060",letterSpacing:"1px"}}>
-                +{totalDupeCredits} 💎 from duplicates
-              </div>
+              traded
+                ?<div style={{background:"#1a2a1a",border:"1px solid #4caf5066",borderRadius:"14px",padding:"14px 34px",fontFamily:"'Orbitron',monospace",fontSize:"16px",color:"#81c784",letterSpacing:"1px"}}>✓ Traded! +{totalDupeCredits} 💎</div>
+                :<button onClick={()=>{onTradeDupes(dupes);setTraded(true);}} style={{background:"linear-gradient(135deg,#ff6b35,#ff9060)",border:"none",borderRadius:"14px",padding:"14px 34px",fontFamily:"'Orbitron',monospace",fontSize:"16px",fontWeight:700,color:"#fff",cursor:"pointer",letterSpacing:"1px",boxShadow:"0 0 18px #ff6b3566"}}>Trade duplicates for +{totalDupeCredits} 💎</button>
             )}
           </>);
         })()}
@@ -1363,6 +1364,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
   const [showLevelUp,setShowLevelUp]=useState(null);
   const [earnedAchievements,setEarnedAchievements]=useState(()=>initData.earnedAchievements||[]);
   const [packsOpened,setPacksOpened]=useState(()=>initData.packsOpened||0);
+  const [packTradedIds,setPackTradedIds]=useState(new Set());
   const [tradesCompleted,setTradesCompleted]=useState(()=>initData.tradesCompleted||0);
   const [pendingAchievements,setPendingAchievements]=useState([]); // {level, avatar?}
   const [coins,setCoins]=useState(initData.coins||350);
@@ -1466,10 +1468,12 @@ function Game({uid,username,initData,onLogout,isGod=false}){
   const onPackDone=()=>{
     const newCol=[...collection];
     openingPack.forEach(card=>{
+      if(packTradedIds.has(card.id))return; // already traded for credits
       const ex=newCol.find(c=>c.id===card.id);
       if(ex) ex.count=(ex.count||1)+1;
       else newCol.push({...card,count:1,acquiredAt:Date.now()});
     });
+    setPackTradedIds(new Set());
     setCollection(newCol);
     const best=openingPack.reduce((a,b)=>RO[a.rarity]<RO[b.rarity]?a:b);
     if(best.rarity==="Legendary")notify(`⚡ LEGENDARY: ${best.name}!`,"#ff9800");
@@ -1512,6 +1516,19 @@ function Game({uid,username,initData,onLogout,isGod=false}){
     checkAchievements(newCol,null,newTrades,nc,null,null);
     notify(`Traded 1× ${card.name} for +${credits} 💎 & +${XP_AWARDS.trade} XP`,"#ffa060");
     saveData(nc,newCol,questDate,questProgress);
+  };
+
+  const onTradeDupes=(dupes)=>{
+    if(!dupes||dupes.length===0)return;
+    const totalCredits=dupes.reduce((s,c)=>s+DUPE_CREDITS[c.rarity],0);
+    const nc=coins+totalCredits;
+    setCoins(nc);
+    const newTradesCompleted=tradesCompleted+dupes.length;
+    setTradesCompleted(newTradesCompleted);
+    setPackTradedIds(new Set(dupes.map(d=>d.id)));
+    dupes.forEach(()=>{gainXp(XP_AWARDS.trade);advanceQuest('trades');});
+    checkAchievements(collection,null,newTradesCompleted,nc,null,null);
+    saveData(nc,collection,questDate,questProgress);
   };
 
   // Advance daily quest progress
@@ -2570,7 +2587,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
       )}
 
       <BottomNav tab={tab} setTab={setTab} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>
-      {openingPack&&<PackAnim cards={openingPack} onDone={onPackDone} packId={selectedPack} collection={collection}/>}
+      {openingPack&&<PackAnim cards={openingPack} onDone={onPackDone} packId={selectedPack} collection={collection} onTradeDupes={onTradeDupes}/>}
     </div>
   );
 }
