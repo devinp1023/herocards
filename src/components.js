@@ -241,7 +241,7 @@ function HeroCard({card,size="normal",onClick,selected,showShine=false,fill=fals
           gap:fill?"0.5%":"1px",
           marginBottom:fill?"4%":"8px",
         }}>
-          {[["PWR",card.power,"#ff6b40"],["DEF",card.defense,"#4db8ff"],["SPD",card.speed,"#ffe040"]].map(([l,v,c])=>(
+          {[["ATK",card.power,"#ff6b40"],["DEF",card.defense,"#4db8ff"],["SPD",card.speed,"#ffe040"]].map(([l,v,c])=>(
             <div key={l} style={{display:"flex",alignItems:"center",gap:"4px"}}>
               <div style={{fontFamily:"'Orbitron',monospace",fontSize:fill?`calc(${fw}*0.038)`:D.numSz,color:c,width:"20%",flexShrink:0,textAlign:"left",opacity:0.9,letterSpacing:"0.3px"}}>{l}</div>
               <div style={{flex:1,height:`${fStBar}px`,background:"rgba(0,0,0,0.5)",borderRadius:"2px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.08)"}}>
@@ -795,7 +795,7 @@ function CardCMS({onSave,notify}){
         <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'Rajdhani',sans-serif",fontSize:"20px"}}>
           <thead>
             <tr style={{borderBottom:"1px solid #1a1a3a"}}>
-              {["#","EMOJI","NAME","TYPE","RARITY","ALLIANCE","PACK","PWR","DEF","SPD",""].map(h=>(
+              {["#","EMOJI","NAME","TYPE","RARITY","ALLIANCE","PACK","ATK","DEF","SPD",""].map(h=>(
                 <th key={h} style={{padding:"11px 14px",textAlign:"left",fontFamily:"'Orbitron',monospace",fontSize:"13px",color:"#c0c4d8",letterSpacing:"1.5px",whiteSpace:"nowrap"}}>{h}</th>
               ))}
             </tr>

@@ -639,7 +639,8 @@ function Game({uid,username,initData,onLogout,isGod=false}){
                 <div className="detail-flex" style={{display:"flex",gap:"67px",alignItems:"flex-start",flexWrap:"wrap",justifyContent:"flex-start"}}>
 
                   {/* Card — fill inside fixed-width aspect-ratio container */}
-                  <div className="detail-card" style={{flexShrink:0,width:"320px"}}>
+                  {/* Override --sidebar-w/--card-col so fill-mode fw always = 320px */}
+                  <div className="detail-card" style={{flexShrink:0,width:"320px","--sidebar-w":"calc(100vw - 320px)","--card-col":"1"}}>
                     <CardWrapper rarity={card.rarity}>
                       <HeroCard card={card} size="normal" fill showShine/>
                     </CardWrapper>
@@ -683,7 +684,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
 
                     {/* Stats */}
                     <div style={{display:"flex",flexDirection:"column",gap:"22px"}}>
-                      {[["⚡ POWER",card.power,"#ff5722"],["🛡️ DEFENSE",card.defense,"#42a5f5"],["💨 SPEED",card.speed,"#ffeb3b"]].map(([label,val,color])=>(
+                      {[["⚡ ATK",card.power,"#ff5722"],["🛡️ DEF",card.defense,"#42a5f5"],["💨 SPD",card.speed,"#ffeb3b"]].map(([label,val,color])=>(
                         <div key={label}>
                           <div style={{display:"flex",justifyContent:"space-between",marginBottom:"11px"}}>
                             <span style={{fontFamily:"'Orbitron',monospace",fontSize:"25px",color:"#d0d4e8",letterSpacing:"1px"}}>{label}</span>
@@ -911,7 +912,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
                           <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"22px",color:"#d0d4e8",lineHeight:1.6,marginBottom:"34px"}}>{card.desc}</div>
                           {/* Stats */}
                           <div style={{display:"flex",gap:"34px",marginBottom:"39px"}}>
-                            {[["⚡ PWR",card.power,"#ff5722"],["🛡 DEF",card.defense,"#42a5f5"],["💨 SPD",card.speed,"#ffeb3b"]].map(([l,v,c])=>(
+                            {[["⚡ ATK",card.power,"#ff5722"],["🛡 DEF",card.defense,"#42a5f5"],["💨 SPD",card.speed,"#ffeb3b"]].map(([l,v,c])=>(
                               <div key={l} style={{textAlign:"center"}}>
                                 <div style={{fontSize:"18px",color:c,fontFamily:"'Orbitron',monospace",marginBottom:"3px"}}>{l}</div>
                                 <div style={{fontSize:"34px",color:"#fff",fontWeight:900}}>{v}</div>
