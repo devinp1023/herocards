@@ -96,6 +96,7 @@ check('TIER_INFO', script.includes('TIER_INFO'));
 // UI components
 check('BattleTab', script.includes('function BattleTab('));
 check('DeckBuilder', script.includes('function DeckBuilder('));
+check('OpponentSelect', script.includes('function OpponentSelect('));
 check('BattleResult', script.includes('function BattleResult('));
 // Prop drilling safety — blank screen prevention
 // These catch the failure mode where props are passed at the call site but

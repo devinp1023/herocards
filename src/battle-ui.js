@@ -5,11 +5,11 @@ const DECK_SIZE = 10;
 const BATTLE_RARITY_LIMITS = { Legendary:1, Epic:2, Rare:4, Uncommon:10, Common:10 };
 
 const TIER_INFO = [
-  {tier:1, name:'Rookie',   color:'#78909c', emoji:'🥉'},
-  {tier:2, name:'Scrapper', color:'#66bb6a', emoji:'⚔️'},
-  {tier:3, name:'Fighter',  color:'#42a5f5', emoji:'🛡️'},
-  {tier:4, name:'Elite',    color:'#ab47bc', emoji:'💎'},
-  {tier:5, name:'Champion', color:'#ffa726', emoji:'👑'},
+  {tier:1, name:'Rookie',   color:'#78909c', emoji:'🥉', avatar:'🤖', difficulty:1, description:'A brand-new trainer running a random collection. Great for testing your deck.'},
+  {tier:2, name:'Scrapper', color:'#66bb6a', emoji:'⚔️', avatar:'🥷', difficulty:2, description:'A scrappy fighter who plays fast and loose with common and uncommon cards.'},
+  {tier:3, name:'Fighter',  color:'#42a5f5', emoji:'🛡️', avatar:'🧙', difficulty:3, description:'A seasoned duelist with a balanced deck and a few rare tricks up their sleeve.'},
+  {tier:4, name:'Elite',    color:'#ab47bc', emoji:'💎', avatar:'🦅', difficulty:4, description:'An elite challenger running powerful epic combinations. Expect a real fight.'},
+  {tier:5, name:'Champion', color:'#ffa726', emoji:'👑', avatar:'🐲', difficulty:5, description:'The reigning champion. Runs legendary cards and counters everything.'},
 ];
 
 function formatCdTime(ms){
@@ -32,7 +32,8 @@ function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFil
   const [screen,setScreen]=useState('builder');
   const [battleResult,setBattleResult]=useState(null);
 
-  const startBattle=()=>{
+  const startBattle=(tier)=>{
+    setBattleTier(tier);
     const deckCards=battleDeck.map(id=>{
       const owned=collection.find(c=>c.id===id);
       return owned||ALL_CARDS.find(c=>c.id===id);
@@ -42,9 +43,9 @@ function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFil
     const aiDeck=[...ALL_CARDS].sort(()=>Math.random()-0.5).slice(0,10);
 
     const result=runBattle(deckCards,aiDeck);
-    const rewards=calcBattleRewards(battleTier,result.winner,0);
-    onBattleComplete(result,battleDeck,battleTier,rewards);
-    setBattleResult({...result,rewards,tier:battleTier});
+    const rewards=calcBattleRewards(tier,result.winner,0);
+    onBattleComplete(result,battleDeck,tier,rewards);
+    setBattleResult({...result,rewards,tier});
     setScreen('result');
   };
 
@@ -53,6 +54,17 @@ function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFil
       <BattleResult
         result={battleResult}
         onRematch={()=>{setBattleResult(null);setScreen('builder');}}
+      />
+    );
+  }
+
+  if(screen==='opponent'){
+    return(
+      <OpponentSelect
+        battleDeck={battleDeck}
+        collection={collection}
+        onStartBattle={startBattle}
+        onBack={()=>setScreen('builder')}
       />
     );
   }
@@ -69,17 +81,15 @@ function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFil
       rarities={rarities} types={types}
       battleDeck={battleDeck}
       setBattleDeck={setBattleDeck}
-      battleTier={battleTier}
-      setBattleTier={setBattleTier}
       battleCooldowns={battleCooldowns}
-      onStartBattle={startBattle}
+      onChooseOpponent={()=>setScreen('opponent')}
       notify={notify}
     />
   );
 }
 
 /* ── DeckBuilder ── */
-function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityFilter,sortBy,setSortBy,search,setSearch,packFilter,setPackFilter,rarities,types,battleDeck,setBattleDeck,battleTier,setBattleTier,battleCooldowns,onStartBattle,notify}){
+function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityFilter,sortBy,setSortBy,search,setSearch,packFilter,setPackFilter,rarities,types,battleDeck,setBattleDeck,battleCooldowns,onChooseOpponent,notify}){
 
   const [hoveredSlot,setHoveredSlot]=useState(null);
 
@@ -126,7 +136,6 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
   const deckFull=battleDeck.length===DECK_SIZE;
   const anyOnCooldown=battleDeck.some(id=>isCardOnCooldown(id,battleCooldowns));
   const canStart=deckFull&&!anyOnCooldown;
-  const tierRewards=BATTLE_REWARDS[battleTier];
 
   if(battleLocked){
     return(
@@ -152,29 +161,6 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
         {/* Title */}
         <div style={{fontFamily:"'Orbitron',monospace",fontSize:"20px",fontWeight:900,color:"#4fc3f7",letterSpacing:"2px",marginBottom:"14px"}}>
           ⚔️ BUILD YOUR DECK
-        </div>
-
-        {/* Difficulty tier row */}
-        <div style={{marginBottom:"12px"}}>
-          <div style={{display:"flex",gap:"6px",flexWrap:"wrap",alignItems:"center"}}>
-            {TIER_INFO.map(t=>(
-              <button key={t.tier} onClick={()=>setBattleTier(t.tier)} style={{
-                background:battleTier===t.tier?`${t.color}22`:"transparent",
-                border:`1px solid ${battleTier===t.tier?t.color:"rgba(255,255,255,0.18)"}`,
-                borderRadius:"9px",padding:"6px 13px",
-                fontFamily:"'Orbitron',monospace",fontSize:"12px",fontWeight:700,
-                color:battleTier===t.tier?t.color:"#c0c8e0",
-                cursor:"pointer",letterSpacing:"0.5px",transition:"all 0.15s",
-              }}>
-                {t.emoji} {t.name}
-              </button>
-            ))}
-            <div style={{marginLeft:"auto",fontFamily:"'Rajdhani',sans-serif",fontSize:"15px",color:"#c0c8e0",flexShrink:0}}>
-              Win <span style={{color:"#4fc3f7"}}>💎{tierRewards.winCredits} +{tierRewards.winXp}XP</span>
-              <span style={{margin:"0 8px",color:"rgba(255,255,255,0.2)"}}>·</span>
-              Loss <span style={{color:"#a0a8c0"}}>💎{tierRewards.lossCredits} +{tierRewards.lossXp}XP</span>
-            </div>
-          </div>
         </div>
 
         {/* Rarity limit badges */}
@@ -323,10 +309,10 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
 
         {/* Start battle button */}
         <button
-          onClick={canStart?onStartBattle:undefined}
+          onClick={canStart?onChooseOpponent:undefined}
           style={{width:"100%",background:canStart?"linear-gradient(135deg,#4fc3f7,#00e5ff)":"#0a0a1e",border:canStart?"none":"1px solid rgba(255,255,255,0.12)",borderRadius:"13px",padding:"14px",fontFamily:"'Orbitron',monospace",fontSize:"16px",fontWeight:900,color:canStart?"#060610":"#6070a0",cursor:canStart?"pointer":"not-allowed",letterSpacing:"2px",boxShadow:canStart?"0 0 18px #4fc3f755":"none",transition:"all 0.2s"}}
         >
-          {anyOnCooldown?"⏱️ CARDS ON COOLDOWN":deckFull?"⚔️ START BATTLE":`SELECT ${DECK_SIZE-battleDeck.length} MORE CARD${DECK_SIZE-battleDeck.length!==1?"S":""}`}
+          {anyOnCooldown?"⏱️ CARDS ON COOLDOWN":deckFull?"👥 CHOOSE OPPONENT":`SELECT ${DECK_SIZE-battleDeck.length} MORE CARD${DECK_SIZE-battleDeck.length!==1?"S":""}`}
         </button>
 
         {/* Deck count */}
@@ -334,6 +320,74 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
           {battleDeck.length}/{DECK_SIZE} cards selected
           {anyOnCooldown&&<span style={{color:"#ef5350",marginLeft:"10px"}}>· cooldown active</span>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── OpponentSelect ── */
+function OpponentSelect({onStartBattle,onBack}){
+  const [hovered,setHovered]=useState(null);
+
+  return(
+    <div style={{maxWidth:"680px",margin:"0 auto",padding:"32px 32px 120px"}}>
+
+      {/* Back */}
+      <button onClick={onBack} style={{background:"transparent",border:"none",color:"#4fc3f7",fontFamily:"'Orbitron',monospace",fontSize:"12px",letterSpacing:"1px",cursor:"pointer",padding:"0",marginBottom:"28px",display:"flex",alignItems:"center",gap:"6px"}}>
+        ← CHANGE DECK
+      </button>
+
+      <div style={{fontFamily:"'Orbitron',monospace",fontSize:"20px",fontWeight:900,color:"#ffffff",letterSpacing:"2px",marginBottom:"6px"}}>
+        CHOOSE YOUR OPPONENT
+      </div>
+      <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"15px",color:"#a0a8c0",marginBottom:"28px"}}>
+        Higher tiers mean tougher opponents and bigger rewards.
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+        {TIER_INFO.map(t=>{
+          const rewards=BATTLE_REWARDS[t.tier];
+          const isHovered=hovered===t.tier;
+          return(
+            <div key={t.tier}
+              onClick={()=>onStartBattle(t.tier)}
+              onMouseEnter={()=>setHovered(t.tier)}
+              onMouseLeave={()=>setHovered(null)}
+              style={{background:isHovered?`${t.color}18`:`${t.color}0a`,border:`1.5px solid ${isHovered?t.color:`${t.color}44`}`,borderRadius:"16px",padding:"20px 24px",cursor:"pointer",transition:"all 0.15s",display:"flex",alignItems:"center",gap:"20px"}}
+            >
+              {/* Avatar */}
+              <div style={{fontSize:"52px",lineHeight:1,flexShrink:0,filter:isHovered?"drop-shadow(0 0 12px currentColor)":"none",transition:"filter 0.15s"}}>
+                {t.avatar}
+              </div>
+
+              {/* Info */}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"6px",flexWrap:"wrap"}}>
+                  <div style={{fontFamily:"'Orbitron',monospace",fontSize:"15px",fontWeight:900,color:t.color,letterSpacing:"1px"}}>
+                    {t.emoji} {t.name.toUpperCase()}
+                  </div>
+                  <div style={{display:"flex",gap:"4px",alignItems:"center"}}>
+                    {Array.from({length:5}).map((_,i)=>(
+                      <div key={i} style={{width:"8px",height:"8px",borderRadius:"50%",background:i<t.difficulty?t.color:`${t.color}28`,transition:"background 0.15s"}}/>
+                    ))}
+                  </div>
+                </div>
+                <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"15px",color:"#c0c8e0",marginBottom:"10px",lineHeight:1.45}}>
+                  {t.description}
+                </div>
+                <div style={{display:"flex",gap:"16px",flexWrap:"wrap"}}>
+                  <span style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"14px",color:"#4fc3f7"}}>Win: 💎{rewards.winCredits} +{rewards.winXp}XP</span>
+                  <span style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"14px",color:"#a0a8c0"}}>Loss: 💎{rewards.lossCredits} +{rewards.lossXp}XP</span>
+                </div>
+              </div>
+
+              {/* CTA arrow */}
+              <div style={{flexShrink:0,background:isHovered?t.color:`${t.color}22`,border:`1px solid ${isHovered?"transparent":`${t.color}66`}`,borderRadius:"10px",padding:"10px 16px",fontFamily:"'Orbitron',monospace",fontSize:"12px",fontWeight:900,color:isHovered?"#060610":t.color,letterSpacing:"1px",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+                BATTLE →
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
