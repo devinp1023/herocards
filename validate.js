@@ -97,6 +97,11 @@ check('TIER_INFO', script.includes('TIER_INFO'));
 check('BattleTab', script.includes('function BattleTab('));
 check('DeckBuilder', script.includes('function DeckBuilder('));
 check('BattleResult', script.includes('function BattleResult('));
+// Prop drilling safety — blank screen prevention
+// These catch the failure mode where props are passed at the call site but
+// not destructured in the receiving component (undefined spread → crash)
+check('BattleTab destructures sorted', script.includes('function BattleTab({collection,sorted,'));
+check('DeckBuilder destructures sorted', script.includes('function DeckBuilder({collection,sorted,'));
 // Game integration
 check('battleDeck state', script.includes('battleDeck,setBattleDeck'));
 check('battleCooldowns state', script.includes('battleCooldowns,setBattleCooldowns'));
