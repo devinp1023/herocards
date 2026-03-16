@@ -39,6 +39,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
   const [storeTab,setStoreTab]=useState("avatars");
   const [battleDeck,setBattleDeck]=useState([]);
   const [battleTier,setBattleTier]=useState(1);
+  const [isBattling,setIsBattling]=useState(false);
   const [battleCooldowns,setBattleCooldowns]=useState({});
   const saveTimer=useRef(null);
 
@@ -326,7 +327,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
       </div>
 
       <div style={{display:"flex",height:`calc(100vh - ${isGod?86:57}px)`}}>
-        <Sidebar tab={tab} setTab={setTabPersist} selectedCard={selectedCard} collection={collection} isGod={isGod}/>
+        {!isBattling&&<Sidebar tab={tab} setTab={setTabPersist} selectedCard={selectedCard} collection={collection} isGod={isGod}/>}
         <div className="main-pad" style={{flex:1,overflowY:"auto",height:"100%",isolation:"isolate"}}>
 
           {/* HOME */}
@@ -1161,6 +1162,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
               notify={notify}
               gainXp={gainXp}
               isGod={isGod}
+              onBattlingChange={setIsBattling}
             />
           )}
 
@@ -1279,7 +1281,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
         document.body
       )}
 
-      <HamburgerNav tab={tab} setTab={setTabPersist} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>
+      {!isBattling&&<HamburgerNav tab={tab} setTab={setTabPersist} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>}
       {openingPack&&<PackAnim cards={openingPack} onDone={onPackDone} packId={selectedPack} collection={collection} onTradeDupes={onTradeDupes}/>}
     </div>
   );

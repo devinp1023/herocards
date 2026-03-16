@@ -1,8 +1,28 @@
 /* ── battle-ui.js ── */
 // Session 2: Deck Builder UI + Battle Result screen
+// Session 3: Interactive Battle Stage
 
 const DECK_SIZE = 10;
 const BATTLE_RARITY_LIMITS = { Legendary:1, Epic:2, Rare:4, Uncommon:10, Common:10 };
+
+// AI deck composition by tier (per PRD §6)
+const AI_DECK_COMP = {
+  1:{Common:10,Uncommon:0,Rare:0,Epic:0,Legendary:0},
+  2:{Common:6,Uncommon:4,Rare:0,Epic:0,Legendary:0},
+  3:{Common:3,Uncommon:4,Rare:3,Epic:0,Legendary:0},
+  4:{Common:2,Uncommon:3,Rare:3,Epic:2,Legendary:0},
+  5:{Common:1,Uncommon:1,Rare:2,Epic:3,Legendary:3},
+};
+function generateAiDeck(tier){
+  const comp=AI_DECK_COMP[tier]||AI_DECK_COMP[1];
+  const deck=[];
+  for(const [rarity,count] of Object.entries(comp)){
+    if(!count) continue;
+    const pool=[...ALL_CARDS.filter(c=>c.rarity===rarity)].sort(()=>Math.random()-0.5);
+    deck.push(...pool.slice(0,count));
+  }
+  return deck.sort(()=>Math.random()-0.5);
+}
 
 const TIER_INFO = [
   {tier:1, name:'Rookie',   color:'#78909c', emoji:'🥉', avatar:'🤖', difficulty:1, description:'A brand-new trainer running a random collection. Great for testing your deck.'},
@@ -27,10 +47,279 @@ function getNextMidnight(){
   return d.getTime();
 }
 
+/* ── HpBar ── */
+function HpBar({hp,maxHp,color="#4fc3f7"}){
+  const pct=Math.max(0,Math.min(100,(hp/maxHp)*100));
+  const barColor=pct>50?color:pct>25?"#ff9800":"#ef5350";
+  return(
+    <div style={{width:"100%"}}>
+      <div style={{background:"#0a0a20",borderRadius:"4px",height:"7px",overflow:"hidden",marginBottom:"3px"}}>
+        <div style={{width:`${pct}%`,height:"100%",background:barColor,borderRadius:"4px",transition:"width 0.4s ease"}}/>
+      </div>
+      <div style={{fontFamily:"monospace",fontSize:"10px",color:"#505878",textAlign:"center"}}>{hp}/{maxHp} HP</div>
+    </div>
+  );
+}
+
+/* ── FaceDownCard ── */
+function FaceDownCard({small}){
+  return(
+    <div style={{width:small?"20px":"30px",height:small?"29px":"43px",borderRadius:"4px",background:"linear-gradient(135deg,#1a1a40,#2a2a5a)",border:"1px solid #2a2a6a",flexShrink:0}}/>
+  );
+}
+
+/* ── BattleStage — Session 3: Interactive Battle ── */
+function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
+  const pRef=useRef(null);
+  const aRef=useRef(null);
+  const logRef=useRef([]);
+  const [phase,setPhase]=useState('init');
+  // 'init' | 'ready' | 'attacking' | 'ai_replacing' | 'selecting' | 'done'
+  const [tick,setTick]=useState(0);
+  const [roundNum,setRoundNum]=useState(1);
+  const [typeRevealed,setTypeRevealed]=useState(false);
+  const refresh=()=>setTick(t=>t+1);
+
+  useEffect(()=>{
+    const p=initSideState(playerDeck);
+    const a=initSideState(aiDeck);
+    const log=[];
+    applyEntryEffects(p.active,p,a,log);
+    applyEntryEffects(a.active,a,p,log);
+    log.push({type:'BATTLE_START',playerActive:p.active.name,aiActive:a.active.name});
+    pRef.current=p; aRef.current=a; logRef.current=log;
+    setPhase('ready'); refresh();
+  },[]);
+
+  const endBattle=(winner)=>{
+    const log=logRef.current;
+    log.push({type:'BATTLE_END',winner});
+    setPhase('done');
+    setTimeout(()=>onBattleEnd({winner,log}),900);
+  };
+
+  const finishRound=()=>{
+    const p=pRef.current; const a=aRef.current; const log=logRef.current;
+    resolvePostRound(p,a,log);
+    refresh();
+    // Check bleed deaths
+    if(p.active&&p.active.hp<=0){
+      resolveDefeat(p.active,p,log);
+      p.active=null;
+      if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
+      if(p.hand.length===0&&p.deck.length>0) drawCard(p);
+      setPhase('selecting'); refresh(); return;
+    }
+    if(a.active&&a.active.hp<=0){
+      resolveDefeat(a.active,a,log);
+      a.active=null;
+      if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
+      aiReplace(); return;
+    }
+    setRoundNum(n=>n+1); setPhase('ready'); refresh();
+  };
+
+  const aiReplace=()=>{
+    setPhase('ai_replacing'); refresh();
+    setTimeout(()=>{
+      const a=aRef.current; const p=pRef.current; const log=logRef.current;
+      if(a.hand.length===0&&a.deck.length>0) drawCard(a);
+      const next=aiSelectCard(a.hand,p.active?p.active.type:'Brawler');
+      if(!next){ endBattle('player'); return; }
+      a.hand=a.hand.filter(c=>c.id!==next.id);
+      a.active=next;
+      applyEntryEffects(next,a,p,log);
+      log.push({type:'CARD_ENTER',side:'ai',card:next.name});
+      setRoundNum(n=>n+1); setPhase('ready'); refresh();
+    },1400);
+  };
+
+  const handleAttack=()=>{
+    if(phase!=='ready') return;
+    const p=pRef.current; const a=aRef.current; const log=logRef.current;
+    if(p.hand.length<5) drawCard(p);
+    if(a.hand.length<5) drawCard(a);
+    log.push({type:'ROUND_START',round:roundNum,playerHp:p.active.hp,playerMaxHp:p.active.maxHp,aiHp:a.active.hp,aiMaxHp:a.active.maxHp});
+    const pSpd=effSpeed(p.active); const aSpd=effSpeed(a.active);
+    const playerFirst=pSpd>=aSpd;
+    setPhase('attacking');
+    let pKilled=false; let aKilled=false;
+    if(playerFirst){
+      const r1=executeAttack(p.active,a.active,p,a,log);
+      aKilled=r1.killed||a.active.hp<=0; pKilled=p.active.hp<=0;
+      if(!aKilled&&!pKilled){ const r2=executeAttack(a.active,p.active,a,p,log); pKilled=r2.killed||p.active.hp<=0; aKilled=aKilled||a.active.hp<=0; }
+    } else {
+      const r1=executeAttack(a.active,p.active,a,p,log);
+      pKilled=r1.killed||p.active.hp<=0; aKilled=a.active.hp<=0;
+      if(!pKilled&&!aKilled){ const r2=executeAttack(p.active,a.active,p,a,log); aKilled=r2.killed||a.active.hp<=0; pKilled=pKilled||p.active.hp<=0; }
+    }
+    setTypeRevealed(true); refresh();
+    setTimeout(()=>{
+      if(!aKilled&&!pKilled){ finishRound(); return; }
+      if(aKilled&&pKilled){
+        resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
+        resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
+        a.active=null; p.active=null;
+        if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
+        if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
+        if(a.hand.length===0&&a.deck.length>0) drawCard(a);
+        const next=aiSelectCard(a.hand,'Brawler');
+        if(next){ a.hand=a.hand.filter(c=>c.id!==next.id); a.active=next; applyEntryEffects(next,a,p,log); }
+        if(p.hand.length===0&&p.deck.length>0) drawCard(p);
+        setPhase('selecting'); refresh(); return;
+      }
+      if(aKilled){
+        resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
+        a.active=null; refresh();
+        if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
+        aiReplace(); return;
+      }
+      resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
+      p.active=null; refresh();
+      if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
+      if(p.hand.length===0&&p.deck.length>0) drawCard(p);
+      setPhase('selecting'); refresh();
+    },700);
+  };
+
+  const handleSelectCard=(card)=>{
+    if(phase!=='selecting') return;
+    const p=pRef.current; const a=aRef.current; const log=logRef.current;
+    p.hand=p.hand.filter(c=>c.id!==card.id);
+    p.active=card;
+    applyEntryEffects(card,p,a,log);
+    log.push({type:'CARD_ENTER',side:'player',card:card.name});
+    resolvePostRound(p,a,log);
+    setRoundNum(n=>n+1); setPhase('ready'); refresh();
+  };
+
+  const p=pRef.current; const a=aRef.current;
+  if(!p||!a||phase==='init'){
+    return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",background:"#060610"}}><Spinner size={40} color="#4fc3f7"/></div>);
+  }
+
+  const canAttack=phase==='ready'&&!!p.active&&!!a.active;
+  const needSelect=phase==='selecting';
+  const mult=typeRevealed&&p.active&&a.active?getTypeMultiplier(p.active.type,a.active.type):null;
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#060610",overflow:"hidden"}}>
+
+      {/* ── AI zone ── */}
+      <div style={{flexShrink:0,padding:"10px 16px 8px",background:"#080818",borderBottom:"1px solid #0f0f24"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"6px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+            <span style={{fontSize:"24px"}}>{tierInfo.avatar}</span>
+            <div>
+              <div style={{fontFamily:"'Orbitron',monospace",fontSize:"15px",fontWeight:900,color:tierInfo.color,letterSpacing:"1px"}}>{tierInfo.emoji} {tierInfo.name.toUpperCase()}</div>
+              <div style={{fontFamily:"'Orbitron',monospace",fontSize:"13px",fontWeight:700,color:"#c0c8e0",letterSpacing:"1px"}}>ROUND {roundNum}</div>
+            </div>
+          </div>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:"13px",fontWeight:700,color:"#a0aac0",letterSpacing:"0.5px"}}>🃏 {a.hand.length} &nbsp;📚 {a.deck.length}</div>
+        </div>
+        <div style={{display:"flex",gap:"4px",alignItems:"center"}}>
+          {a.hand.map((_,i)=><FaceDownCard key={i}/>)}
+          {a.deck.length>0&&<><div style={{width:"1px",height:"24px",background:"#1a1a3a",margin:"0 4px"}}/>{Array.from({length:Math.min(a.deck.length,5)}).map((_,i)=><FaceDownCard key={`d${i}`} small/>)}{a.deck.length>5&&<span style={{fontFamily:"monospace",fontSize:"10px",color:"#303050"}}>+{a.deck.length-5}</span>}</>}
+        </div>
+      </div>
+
+      {/* ── Combat zone ── */}
+      <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"space-around",padding:"12px 16px",gap:"8px",minHeight:0}}>
+
+        {/* AI active */}
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",fontWeight:700,color:"#a0aac0",letterSpacing:"2px"}}>OPPONENT</div>
+          {a.active?(
+            <>
+              <div style={{width:"120px","--sidebar-w":"calc(100vw - 120px)","--card-col":"1"}}>
+                <CardWrapper rarity={a.active.rarity}><HeroCard card={a.active} size="normal" fill/></CardWrapper>
+              </div>
+              <HpBar hp={a.active.hp} maxHp={a.active.maxHp} color="#ef5350"/>
+              {mult!==null&&<div style={{fontFamily:"monospace",fontSize:"10px",letterSpacing:"0.5px",color:mult===1.5?"#ef5350":mult===0.75?"#4caf50":"#404060"}}>{mult===1.5?"▲ STRONG vs you":mult===0.75?"▼ WEAK vs you":"— NEUTRAL"}</div>}
+            </>
+          ):(
+            <div style={{width:"120px",height:"173px",border:"2px dashed #ef535033",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>DEFEATED</div>
+          )}
+        </div>
+
+        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"26px",fontWeight:900,color:"#4fc3f7",flexShrink:0,userSelect:"none",textShadow:"0 0 12px #4fc3f788"}}>VS</div>
+
+        {/* Player active */}
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",fontWeight:700,color:"#4fc3f7",letterSpacing:"2px"}}>YOU</div>
+          {p.active?(
+            <>
+              <div style={{width:"120px","--sidebar-w":"calc(100vw - 120px)","--card-col":"1"}}>
+                <CardWrapper rarity={p.active.rarity}><HeroCard card={p.active} size="normal" fill/></CardWrapper>
+              </div>
+              <HpBar hp={p.active.hp} maxHp={p.active.maxHp} color="#4fc3f7"/>
+              {mult!==null&&<div style={{fontFamily:"monospace",fontSize:"10px",letterSpacing:"0.5px",color:mult===1.5?"#4caf50":mult===0.75?"#ef5350":"#404060"}}>{mult===1.5?"▲ STRONG vs them":mult===0.75?"▼ WEAK vs them":"— NEUTRAL"}</div>}
+            </>
+          ):(
+            <div style={{width:"120px",height:"173px",border:"2px dashed #4fc3f733",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>SELECT →</div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Player hand ── */}
+      <div style={{flexShrink:0,background:"#080818",borderTop:"1px solid #0f0f24",padding:"8px 12px 10px"}}>
+        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"13px",fontWeight:700,color:"#c0c8e0",letterSpacing:"1px",marginBottom:"6px"}}>
+          YOUR HAND · {p.hand.length} &nbsp;·&nbsp; 📚 {p.deck.length} in deck
+        </div>
+        <div style={{display:"flex",gap:"8px",overflowX:"auto",paddingBottom:"2px"}}>
+          {p.hand.map(card=>(
+            <div key={card.id} onClick={needSelect?()=>handleSelectCard(card):undefined}
+              style={{width:"72px",flexShrink:0,cursor:needSelect?"pointer":"default",borderRadius:"9px",
+                outline:needSelect?"2px solid #4fc3f7":"none",outlineOffset:"2px",
+                opacity:needSelect?1:0.55,transition:"opacity 0.2s,outline 0.2s",
+                "--sidebar-w":"calc(100vw - 72px)","--card-col":"1"}}>
+              <CardWrapper rarity={card.rarity}><HeroCard card={card} size="normal" fill/></CardWrapper>
+            </div>
+          ))}
+          {p.hand.length===0&&<div style={{color:"#303050",fontFamily:"monospace",fontSize:"12px",padding:"10px 0"}}>No cards in hand</div>}
+        </div>
+      </div>
+
+      {/* ── Action bar ── */}
+      <div style={{flexShrink:0,padding:"10px 16px 12px",background:"#08081a",borderTop:"1px solid #12122a"}}>
+        {needSelect?(
+          <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"13px",color:"#4fc3f7",letterSpacing:"1px",padding:"8px 0"}}>
+            👆 Tap a card from your hand to play
+          </div>
+        ):phase==='ai_replacing'?(
+          <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"12px",color:"#505878",letterSpacing:"1px",padding:"8px 0"}}>
+            {tierInfo.avatar} Choosing next card...
+          </div>
+        ):phase==='attacking'?(
+          <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"12px",color:"#505878",letterSpacing:"1px",padding:"8px 0"}}>
+            ⚔️ Resolving...
+          </div>
+        ):(
+          <button onClick={canAttack?handleAttack:undefined} disabled={!canAttack}
+            style={{width:"100%",background:canAttack?"linear-gradient(135deg,#ef5350,#ff7043)":"#0a0a1e",
+              border:canAttack?"none":"1px solid rgba(255,255,255,0.08)",borderRadius:"13px",padding:"14px",
+              fontFamily:"'Orbitron',monospace",fontSize:"16px",fontWeight:900,
+              color:canAttack?"#fff":"#303050",cursor:canAttack?"pointer":"not-allowed",
+              letterSpacing:"2px",boxShadow:canAttack?"0 0 16px #ef535055":"none",transition:"all 0.2s"}}>
+            ⚔️ ATTACK
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── BattleTab — orchestrates screens ── */
-function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFilter,sortBy,setSortBy,search,setSearch,packFilter,setPackFilter,rarities,types,battleDeck,setBattleDeck,battleTier,setBattleTier,battleCooldowns,onBattleComplete,notify,gainXp,isGod}){
+function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFilter,sortBy,setSortBy,search,setSearch,packFilter,setPackFilter,rarities,types,battleDeck,setBattleDeck,battleTier,setBattleTier,battleCooldowns,onBattleComplete,notify,gainXp,isGod,onBattlingChange}){
   const [screen,setScreen]=useState('builder');
   const [battleResult,setBattleResult]=useState(null);
+  const [battleSetup,setBattleSetup]=useState(null);
+
+  // Signal parent when entering/leaving live battle
+  useEffect(()=>{
+    onBattlingChange?.(screen==='battle');
+    return()=>onBattlingChange?.(false);
+  },[screen]);
 
   const startBattle=(tier)=>{
     setBattleTier(tier);
@@ -38,15 +327,9 @@ function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFil
       const owned=collection.find(c=>c.id===id);
       return owned||ALL_CARDS.find(c=>c.id===id);
     }).filter(Boolean);
-
-    // Random AI deck from full card pool
-    const aiDeck=[...ALL_CARDS].sort(()=>Math.random()-0.5).slice(0,10);
-
-    const result=runBattle(deckCards,aiDeck);
-    const rewards=calcBattleRewards(tier,result.winner,0);
-    onBattleComplete(result,battleDeck,tier,rewards);
-    setBattleResult({...result,rewards,tier});
-    setScreen('result');
+    const aiDeck=generateAiDeck(tier);
+    setBattleSetup({playerDeck:deckCards,aiDeck,tier});
+    setScreen('battle');
   };
 
   if(screen==='result'&&battleResult){
@@ -54,6 +337,23 @@ function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFil
       <BattleResult
         result={battleResult}
         onRematch={()=>{setBattleResult(null);setScreen('builder');}}
+      />
+    );
+  }
+
+  if(screen==='battle'&&battleSetup){
+    return(
+      <BattleStage
+        playerDeck={battleSetup.playerDeck}
+        aiDeck={battleSetup.aiDeck}
+        tierInfo={TIER_INFO[battleSetup.tier-1]}
+        onBattleEnd={(result)=>{
+          const rewards=calcBattleRewards(battleSetup.tier,result.winner,0);
+          onBattleComplete(result,battleDeck,battleSetup.tier,rewards);
+          setBattleResult({...result,rewards,tier:battleSetup.tier});
+          setBattleSetup(null);
+          setScreen('result');
+        }}
       />
     );
   }
