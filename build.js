@@ -13,7 +13,7 @@ const SOURCES = [
   'src/data.js',
   'src/components.js',
   'src/game.js',
-  // Future: 'src/battle-engine.js',
+  'src/battle-engine.js',
   // Future: 'src/battle-ui.js',
 ];
 
