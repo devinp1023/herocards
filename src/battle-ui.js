@@ -160,19 +160,19 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
             {TIER_INFO.map(t=>(
               <button key={t.tier} onClick={()=>setBattleTier(t.tier)} style={{
                 background:battleTier===t.tier?`${t.color}22`:"transparent",
-                border:`1px solid ${battleTier===t.tier?t.color:"#1a1a3a"}`,
+                border:`1px solid ${battleTier===t.tier?t.color:"rgba(255,255,255,0.18)"}`,
                 borderRadius:"9px",padding:"6px 13px",
                 fontFamily:"'Orbitron',monospace",fontSize:"12px",fontWeight:700,
-                color:battleTier===t.tier?t.color:"#404060",
+                color:battleTier===t.tier?t.color:"#c0c8e0",
                 cursor:"pointer",letterSpacing:"0.5px",transition:"all 0.15s",
               }}>
                 {t.emoji} {t.name}
               </button>
             ))}
-            <div style={{marginLeft:"auto",fontFamily:"'Rajdhani',sans-serif",fontSize:"15px",color:"#505878",flexShrink:0}}>
+            <div style={{marginLeft:"auto",fontFamily:"'Rajdhani',sans-serif",fontSize:"15px",color:"#c0c8e0",flexShrink:0}}>
               Win <span style={{color:"#4fc3f7"}}>💎{tierRewards.winCredits} +{tierRewards.winXp}XP</span>
-              <span style={{margin:"0 8px",color:"#1a1a3a"}}>·</span>
-              Loss <span style={{color:"#606880"}}>💎{tierRewards.lossCredits} +{tierRewards.lossXp}XP</span>
+              <span style={{margin:"0 8px",color:"rgba(255,255,255,0.2)"}}>·</span>
+              Loss <span style={{color:"#a0a8c0"}}>💎{tierRewards.lossCredits} +{tierRewards.lossXp}XP</span>
             </div>
           </div>
         </div>
@@ -184,12 +184,12 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
             const cnt=rarityCounts[r];
             const cfg=RC[r];
             return(
-              <div key={r} style={{background:cnt>0?`${cfg.color}15`:"transparent",border:`1px solid ${cnt>0?cfg.color+"44":"#1a1a3a"}`,borderRadius:"7px",padding:"3px 10px",fontFamily:"monospace",fontSize:"13px",color:cnt>=lim?cfg.color:"#404060"}}>
+              <div key={r} style={{background:cnt>0?`${cfg.color}15`:"transparent",border:`1px solid ${cnt>0?cfg.color+"44":"rgba(255,255,255,0.15)"}`,borderRadius:"7px",padding:"3px 10px",fontFamily:"monospace",fontSize:"13px",color:cnt>=lim?cfg.color:"#c0c8e0"}}>
                 <span style={{color:cfg.color}}>{r[0]}</span>:{cnt}/{lim}
               </div>
             );
           })}
-          <div style={{background:"transparent",border:"1px solid #1a1a3a",borderRadius:"7px",padding:"3px 10px",fontFamily:"monospace",fontSize:"13px",color:"#404060"}}>U/C: ∞</div>
+          <div style={{background:"transparent",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"7px",padding:"3px 10px",fontFamily:"monospace",fontSize:"13px",color:"#c0c8e0"}}>U/C: ∞</div>
         </div>
 
         {/* Pack filter — same as Collection */}
@@ -227,7 +227,7 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
 
       {/* ── Deck Slots — 5×2 grid of card placeholders ── */}
       <div style={{padding:"16px 32px 20px",borderBottom:"1px solid #0f0f24"}}>
-        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#303858",letterSpacing:"3px",marginBottom:"12px"}}>
+        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#a0aac0",letterSpacing:"3px",marginBottom:"12px"}}>
           YOUR DECK · {battleDeck.length}/{DECK_SIZE}
         </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:"8px"}}>
@@ -259,7 +259,7 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
             }
 
             return(
-              <div key={i} style={{aspectRatio:"201/290",border:"1.5px dashed #151f3a",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",background:"transparent",color:"#1e2a40",fontFamily:"monospace",fontSize:"18px",fontWeight:700}}>
+              <div key={i} style={{aspectRatio:"201/290",border:"1.5px dashed rgba(255,255,255,0.2)",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",background:"transparent",color:"rgba(255,255,255,0.3)",fontFamily:"monospace",fontSize:"18px",fontWeight:700}}>
                 {i+1}
               </div>
             );
@@ -324,13 +324,13 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
         {/* Start battle button */}
         <button
           onClick={canStart?onStartBattle:undefined}
-          style={{width:"100%",background:canStart?"linear-gradient(135deg,#4fc3f7,#00e5ff)":"#0a0a1e",border:canStart?"none":"1px solid #1a1a3a",borderRadius:"13px",padding:"14px",fontFamily:"'Orbitron',monospace",fontSize:"16px",fontWeight:900,color:canStart?"#060610":"#303050",cursor:canStart?"pointer":"not-allowed",letterSpacing:"2px",boxShadow:canStart?"0 0 18px #4fc3f755":"none",transition:"all 0.2s"}}
+          style={{width:"100%",background:canStart?"linear-gradient(135deg,#4fc3f7,#00e5ff)":"#0a0a1e",border:canStart?"none":"1px solid rgba(255,255,255,0.12)",borderRadius:"13px",padding:"14px",fontFamily:"'Orbitron',monospace",fontSize:"16px",fontWeight:900,color:canStart?"#060610":"#6070a0",cursor:canStart?"pointer":"not-allowed",letterSpacing:"2px",boxShadow:canStart?"0 0 18px #4fc3f755":"none",transition:"all 0.2s"}}
         >
           {anyOnCooldown?"⏱️ CARDS ON COOLDOWN":deckFull?"⚔️ START BATTLE":`SELECT ${DECK_SIZE-battleDeck.length} MORE CARD${DECK_SIZE-battleDeck.length!==1?"S":""}`}
         </button>
 
         {/* Deck count */}
-        <div style={{textAlign:"center",marginTop:"6px",fontFamily:"monospace",fontSize:"13px",color:deckFull?"#4fc3f7":"#404060"}}>
+        <div style={{textAlign:"center",marginTop:"6px",fontFamily:"monospace",fontSize:"13px",color:deckFull?"#4fc3f7":"#c0c8e0"}}>
           {battleDeck.length}/{DECK_SIZE} cards selected
           {anyOnCooldown&&<span style={{color:"#ef5350",marginLeft:"10px"}}>· cooldown active</span>}
         </div>
