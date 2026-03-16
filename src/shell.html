@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Hero Cards</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet"/>
+<!-- Firebase -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-auth-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-firestore-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-storage-compat.min.js"></script>
+<!-- React -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%;min-height:100vh}
+body{background:#060610;font-family:'Rajdhani',sans-serif;color:#d0d4e8}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shake{0%,100%{transform:rotate(0)}20%{transform:rotate(-6deg)}40%{transform:rotate(6deg)}60%{transform:rotate(-4deg)}80%{transform:rotate(4deg)}}
+@keyframes cardFlip{from{transform:rotateY(90deg) scale(0.85);opacity:0}to{transform:rotateY(0) scale(1);opacity:1}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes glow{0%,100%{text-shadow:0 0 10px #4fc3f7}50%{text-shadow:0 0 24px #00e5ff,0 0 40px #4fc3f7}}
+@keyframes slideDown{from{transform:translateX(-50%) translateY(-20px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+@keyframes shimmer{0%{left:-100%}60%{left:150%}100%{left:150%}}
+@keyframes powerUp{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+@keyframes flyInBottom{from{transform:translateY(120%) scale(0.7);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+@keyframes flyInLeft{from{transform:translateX(-120%) rotate(-8deg) scale(0.8);opacity:0}to{transform:translateX(0) rotate(0) scale(1);opacity:1}}
+@keyframes flashLegendary{0%{opacity:0}15%{opacity:1}85%{opacity:1}100%{opacity:0}}
+@keyframes rarityPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes legendaryFloat{0%,100%{box-shadow:0 0 12px #ff980066,0 0 0 2px #ff980000}50%{box-shadow:0 0 32px #ff9800cc,0 0 0 2px #ff980044}}
+@keyframes epicPulse{0%,100%{box-shadow:0 0 8px #cc6dff44,0 0 0 2px #cc6dff00}50%{box-shadow:0 0 24px #cc6dffbb,0 0 0 2px #cc6dff33}}
+@keyframes particleBurst{0%{transform:scale(0) rotate(0deg);opacity:1}100%{transform:scale(3) rotate(360deg);opacity:0}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:#060610}
+::-webkit-scrollbar-thumb{background:#1a1a3a;border-radius:2px}
+.card-hover{transition:transform 0.2s,box-shadow 0.2s}
+.card-hover:hover{transform:translateY(-5px) scale(1.04)}
+@keyframes flash-common{0%,100%{box-shadow:0 0 6px #9e9e9e44,0 0 0 1.5px #4a5068}50%{box-shadow:0 0 14px #9e9e9eaa,0 0 0 2px #9e9e9e}}
+@keyframes flash-uncommon{0%,100%{box-shadow:0 0 8px #4caf5044,0 0 0 1.5px #2d7a3a}50%{box-shadow:0 0 18px #4caf50cc,0 0 0 2.5px #4caf50}}
+@keyframes flash-rare{0%,100%{box-shadow:0 0 10px #2196f344,0 0 0 1.5px #1e5fa8}50%{box-shadow:0 0 22px #2196f3cc,0 0 0 2.5px #2196f3}}
+@keyframes flash-epic{0%,100%{box-shadow:0 0 12px #9c27b044,0 0 0 1.5px #6a1fa0}50%{box-shadow:0 0 26px #9c27b0cc,0 0 0 3px #cc6dff}}
+@keyframes flash-legendary{0%,100%{box-shadow:0 0 16px #ff980055,0 0 0 2px #b06000}50%{box-shadow:0 0 36px #ff9800ff,0 0 0 3.5px #ffc04a}}
+.sidebar{display:none!important}
+.bottom-nav{display:block!important}
+.hamburger-btn{position:fixed;top:12px;left:12px;z-index:200;background:#0d0d22;border:1px solid #1a1a3a;border-radius:10px;color:#4fc3f7;font-size:22px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.5);}
+.hamburger-drawer{position:fixed;top:0;left:0;height:100vh;width:280px;background:#08081a;border-right:1px solid #12122a;z-index:160;transition:transform 0.3s ease;overflow-y:auto;padding-top:65px;}
+.hamburger-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:155;}
+@media(min-width:768px){
+  .sidebar{display:flex!important}
+  .bottom-nav{display:none!important}
+  .hamburger-btn{display:none!important}
+}
+input{background:#0a0a20;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:13px 16px;color:#e8e8f0;font-size:16px;font-family:'Rajdhani',sans-serif;outline:none;width:100%;letter-spacing:1px}
+input:focus{border-color:#4fc3f7}
+input::placeholder{color:#7a82a0}
+
+@media (max-width: 768px) {
+  /* ── Type filter scrollable ── */
+  .type-filter-btn { flex-shrink: 0 !important; }
+  /* Hide scrollbar on filter row */
+  div::-webkit-scrollbar { display: none; }
+  /* Sort select compact */
+  .sort-select { font-size: 13px !important; padding: 7px 8px !important; }
+  /* Collection grid 2 col with good gap */
+  .collection-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  /* Collection search full width */
+  .collection-search { font-size: 14px !important; }
+  /* Pack filter buttons smaller */
+  .pack-filter-btn { font-size: 11px !important; padding: 6px 10px !important; }
+
+
+  /* ── GLOBAL ── */
+  body { font-size: 14px; }
+  .sidebar { display: none !important; }
+  .bottom-nav { display: flex !important; }
+  .main-pad { padding: 10px 8px !important; }
+
+  /* ── GOD MODE BANNER ── */
+  .god-banner { font-size: 11px !important; padding: 5px 10px !important; flex-wrap: nowrap !important; gap: 6px !important; }
+  .god-banner span:first-child { font-size: 10px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+
+  /* ── HEADER BAR ── */
+  .header-bar { padding: 8px 10px 8px 58px !important; }
+  .header-bar > div:first-child div[style*="Orbitron"] { font-size: 16px !important; }
+  .header-bar > div:first-child div[style*="monospace"] { font-size: 10px !important; }
+  .header-signout-text { display: none !important; }
+  .header-signout-btn { display: none !important; }
+  .header-bar button { font-size: 11px !important; padding: 5px 8px !important; }
+  .header-bar span[style*="fontSize"] { font-size: 16px !important; }
+
+  /* ── HOME PAGE ── */
+  .home-pad { padding: 10px 8px !important; }
+
+  /* ── Profile card ── */
+  .profile-card { padding: 14px 16px !important; gap: 12px !important; margin-bottom: 20px !important; }
+  .profile-avatar { width: 60px !important; height: 60px !important; min-width: 60px !important; }
+  .profile-avatar-emoji { font-size: 30px !important; }
+  .profile-info { min-width: 0 !important; flex: 1 1 100px !important; }
+  .profile-username { font-size: 16px !important; margin-bottom: 4px !important; }
+  .profile-level-badge { font-size: 18px !important; padding: 3px 8px !important; }
+  .profile-cards-count { font-size: 18px !important; }
+  .profile-xp-text { font-size: 15px !important; }
+  .profile-credits { flex-direction: row !important; align-items: center !important; gap: 6px !important; flex-basis: 100% !important; justify-content: flex-end !important; }
+  .profile-credits-amount { font-size: 18px !important; }
+
+  /* Action buttons */
+  .home-openpack-btn { font-size: 18px !important; padding: 16px 10px !important; border-radius: 14px !important; }
+  .home-store-btn { font-size: 16px !important; padding: 14px 12px !important; border-radius: 14px !important; }
+  .home-daily-btn { font-size: 14px !important; padding: 14px 12px !important; border-radius: 12px !important; }
+
+  /* Pack stat cards */
+  .home-pack-stats { grid-template-columns: 1fr !important; gap: 10px !important; }
+
+  /* ── COLLECTION ── */
+  .collection-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .collection-header { font-size: 16px !important; }
+  .pack-filter-btn { font-size: 11px !important; padding: 6px 10px !important; }
+  .rarity-filter-btn { font-size: 11px !important; padding: 4px 8px !important; }
+  .type-filter-btn { font-size: 10px !important; padding: 3px 7px !important; }
+  .collection-search { width: 160px !important; font-size: 13px !important; }
+  .view-toggle button { font-size: 11px !important; padding: 8px 12px !important; }
+
+  /* ── CARD DETAIL ── */
+  .detail-flex { flex-direction: column !important; gap: 16px !important; }
+  .detail-card { max-width: 220px !important; margin: 0 auto !important; }
+  .detail-info { width: 100% !important; min-width: unset !important; flex: unset !important; }
+  .detail-name { font-size: 28px !important; margin-bottom: 10px !important; }
+
+  /* ── PACK SELECT ── */
+  .pack-select-title { font-size: 18px !important; }
+  .pack-select-subtitle { font-size: 13px !important; }
+  .pack-select-card { padding: 16px !important; flex-wrap: wrap !important; gap: 14px !important; }
+  .pack-select-name { font-size: 14px !important; }
+  .pack-open-btn { width: 100% !important; padding: 14px !important; font-size: 16px !important; flex-shrink: 1 !important; }
+
+  /* ── PACK OPENING ── */
+  .pack-title { font-size: 22px !important; }
+  .pack-card-area { width: min(210px, 68vw) !important; aspect-ratio: 201/290 !important; overflow: visible !important; }
+  .pack-card-inner { width: 100% !important; }
+
+  /* ── STORE ── */
+  .page-pad { padding: 12px 10px !important; max-width: 100% !important; }
+  .store-title { font-size: 20px !important; margin-bottom: 6px !important; }
+  .store-tabs { width: 100% !important; }
+  .store-tabs button { flex: 1 !important; font-size: 11px !important; padding: 10px 6px !important; }
+  .avatar-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .featured-deal { flex-direction: column !important; align-items: center !important; text-align: center !important; }
+  .featured-deal > div:nth-child(2) { min-width: unset !important; width: 100% !important; }
+  .card-offer { flex-wrap: wrap !important; gap: 16px !important; }
+  .card-offer > div:first-child { margin: 0 auto !important; }
+
+  /* ── QUESTS ── */
+  .quests-title { font-size: 20px !important; }
+  .quest-card { padding: 12px 14px !important; }
+  .quest-card [style*="fontSize:"28px""] { font-size: 18px !important; }
+  .quest-progress-num { font-size: 18px !important; }
+
+  /* ── ACHIEVEMENTS ── */
+  .ach-title { font-size: 20px !important; }
+  .ach-family-card { padding: 14px !important; margin-bottom: 20px !important; }
+  .ach-tier-row { padding: 8px 10px !important; gap: 8px !important; }
+  .ach-tier-row [style*="fontSize:"26px""] { font-size: 16px !important; }
+
+  /* ── AUTH ── */
+  .auth-card { padding: 20px 14px !important; max-width: calc(100vw - 20px) !important; margin: 0 10px !important; }
+  .auth-title { font-size: 24px !important; }
+
+  /* ── MODALS ── */
+  .avatar-modal-inner { max-width: 100% !important; padding: 14px !important; max-height: 80vh !important; }
+  .avatar-modal-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+  .level-up-modal { padding: 24px 16px !important; max-width: calc(100vw - 20px) !important; }
+  .level-up-number { font-size: 60px !important; }
+  .achievement-popup {
+    width: calc(100vw - 20px) !important;
+    left: 10px !important;
+    transform: none !important;
+    bottom: 72px !important;
+    box-sizing: border-box !important;
+  }
+}
+
+  :root { --card-col: 5; --sidebar-w: 293px; }
+  @media (max-width: 768px) { :root { --card-col: 2; --sidebar-w: 0px; } }
+img{image-rendering:-webkit-optimize-contrast;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<!-- BUILD_INJECT_SCRIPT -->
+</script>
+</body>
+</html>

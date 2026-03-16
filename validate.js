@@ -7,8 +7,11 @@ const start = html.indexOf(startTag) + startTag.length;
 const end = html.indexOf('</script>', start);
 const script = html.slice(start, end);
 
-if(!script.length){ console.error('No babel script found'); process.exit(1); }
+if(!script.length){ console.error('No babel script found — run: node build.js'); process.exit(1); }
 console.log(`Script length: ${script.length} chars`);
+// Source files (for reference — validate.js checks the built index.html)
+// Edit: src/data.js | src/components.js | src/game.js | src/battle-engine.js | src/battle-ui.js
+// Build: node build.js  →  then re-run: node validate.js
 
 let passed=0, failed=0;
 function check(name, condition, detail=''){
