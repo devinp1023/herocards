@@ -268,7 +268,7 @@ function HeroCard({card,size="normal",onClick,selected,showShine=false,fill=fals
 function CardWrapper({width="100%",rarity,onClick,className,flyAnim,zIndex,contain,background,flexShrink,cursor,children}){
   const idleAnim=rarity==="Legendary"?"legendaryFloat 3s ease-in-out infinite":rarity==="Epic"?"epicPulse 2.5s ease-in-out infinite":"none";
   return(
-    <div className={className} onClick={onClick} style={{position:"relative",width:width,aspectRatio:"201/290",borderRadius:"13px",overflow:"hidden",animation:flyAnim||idleAnim,zIndex:zIndex,contain:contain,background:background,flexShrink:flexShrink,cursor:cursor}}>
+    <div className={className} onClick={onClick} style={{position:"relative",width:width,aspectRatio:"201/290",borderRadius:"13px",overflow:"hidden",animation:flyAnim||idleAnim,zIndex:zIndex,contain:contain,background:background,flexShrink:flexShrink,cursor:cursor||(onClick?"pointer":undefined)}}>
       {children}
     </div>
   );
