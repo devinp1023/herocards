@@ -96,6 +96,24 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
   const [openSections,setOpenSections]=useState({pack:true,rarity:true,type:true});
   const toggleSection=s=>setOpenSections(prev=>({...prev,[s]:!prev[s]}));
   const activeFilters=[packFilter!==0,rarityFilter!=='All',filter!=='All'].filter(Boolean).length;
+  const containerRef=useRef(null);
+  const [isSticky,setIsSticky]=useState(false);
+  useEffect(()=>{
+    // Walk up DOM to find the scrollable ancestor (main-pad)
+    const getScroller=el=>{
+      let node=el?.parentElement;
+      while(node){
+        const {overflowY}=getComputedStyle(node);
+        if(overflowY==='auto'||overflowY==='scroll')return node;
+        node=node.parentElement;
+      }
+      return window;
+    };
+    const scroller=getScroller(containerRef.current);
+    const onScroll=()=>setIsSticky((scroller===window?window.scrollY:scroller.scrollTop)>10);
+    scroller.addEventListener('scroll',onScroll,{passive:true});
+    return()=>scroller.removeEventListener('scroll',onScroll);
+  },[]);
 
   // Count selected cards by rarity
   const rarityCounts=(()=>{
@@ -153,21 +171,21 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
   }
 
   return(
-    <div style={{paddingBottom:"200px"}}>
+    <div ref={containerRef} style={{paddingBottom:"200px"}}>
 
       {/* ── Sticky top: controls + deck slots ── */}
-      <div style={{position:"sticky",top:0,zIndex:20,background:"#060610",borderBottom:"1px solid #0f0f24"}}>
+      <div style={{position:"sticky",top:0,zIndex:20,background:"#060610",borderBottom:isSticky?"2px solid rgba(255,255,255,0.6)":"none"}}>
 
       {/* Top controls */}
-      <div style={{padding:"20px 20px 14px"}}>
+      <div style={{padding:isSticky?"8px 20px 6px":"20px 20px 14px"}}>
 
-        {/* Title */}
-        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"20px",fontWeight:900,color:"#4fc3f7",letterSpacing:"2px",marginBottom:"12px"}}>
+        {/* Title — hidden when stickied */}
+        {!isSticky&&<div style={{fontFamily:"'Orbitron',monospace",fontSize:"20px",fontWeight:900,color:"#4fc3f7",letterSpacing:"2px",marginBottom:"12px"}}>
           ⚔️ BUILD YOUR DECK
-        </div>
+        </div>}
 
         {/* Rarity limit badges */}
-        <div style={{display:"flex",gap:"6px",marginBottom:"14px",flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:"6px",marginBottom:isSticky?"6px":"14px",flexWrap:"wrap"}}>
           {['Legendary','Epic','Rare'].map(r=>{
             const lim=BATTLE_RARITY_LIMITS[r];
             const cnt=rarityCounts[r];
@@ -184,7 +202,7 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
       </div>
 
       {/* ── Deck Slots — same card size as pack summary (HeroCard size="small" = 138×186) ── */}
-      <div style={{padding:"16px 20px 20px",borderTop:"1px solid #0f0f24"}}>
+      <div style={{padding:isSticky?"8px 20px 10px":"16px 20px 20px",borderTop:"1px solid #0f0f24"}}>
         <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#a0aac0",letterSpacing:"3px",marginBottom:"12px"}}>
           YOUR DECK · {battleDeck.length}/{DECK_SIZE}
         </div>

@@ -325,9 +325,9 @@ function Game({uid,username,initData,onLogout,isGod=false}){
         </div>
       </div>
 
-      <div style={{display:"flex",minHeight:"calc(100vh - 57px)"}}>
+      <div style={{display:"flex",height:"calc(100vh - 57px)"}}>
         <Sidebar tab={tab} setTab={setTabPersist} selectedCard={selectedCard} collection={collection} isGod={isGod}/>
-        <div className="main-pad" style={{flex:1,overflowY:"auto"}}>
+        <div className="main-pad" style={{flex:1,overflowY:"auto",height:"100%"}}>
 
           {/* HOME */}
           {tab==="home"&&!showPackSelect&&(
@@ -1278,7 +1278,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
         document.body
       )}
 
-      <BottomNav tab={tab} setTab={setTabPersist} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>
+      <HamburgerNav tab={tab} setTab={setTabPersist} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>
       {openingPack&&<PackAnim cards={openingPack} onDone={onPackDone} packId={selectedPack} collection={collection} onTradeDupes={onTradeDupes}/>}
     </div>
   );

@@ -857,8 +857,8 @@ function Sidebar({tab,setTab,selectedCard,collection,isGod=false}){
   );
 }
 
-/* ── Bottom nav ── */
-function BottomNav({tab,setTab,selectedCard,isGod=false,onLogout}){
+/* ── Hamburger nav (mobile) ── */
+function HamburgerNav({tab,setTab,selectedCard,isGod=false,onLogout}){
   const [open,setOpen]=useState(false);
   const items=[{id:"home",icon:"🏠",l:"Home"},{id:"collection",icon:"📋",l:"Cards"},{id:"store",icon:"🛒",l:"Store"},{id:"quests",icon:"⚡",l:"Quests"},{id:"achievements",icon:"🏆",l:"Achievements"},{id:"battle",icon:"⚔️",l:"Battle"},...(isGod?[{id:"cms",icon:"✏️",l:"Card Editor"}]:[])];
   return(
