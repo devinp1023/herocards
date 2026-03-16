@@ -3396,7 +3396,7 @@ function getNextMidnight(){
 }
 
 /* ── BattleTab — orchestrates screens ── */
-function BattleTab({collection,battleDeck,setBattleDeck,battleTier,setBattleTier,battleCooldowns,onBattleComplete,notify,gainXp,isGod}){
+function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFilter,sortBy,setSortBy,search,setSearch,packFilter,setPackFilter,rarities,types,battleDeck,setBattleDeck,battleTier,setBattleTier,battleCooldowns,onBattleComplete,notify,gainXp,isGod}){
   const [screen,setScreen]=useState('builder');
   const [battleResult,setBattleResult]=useState(null);
 
