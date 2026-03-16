@@ -129,12 +129,8 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
     }
   };
 
-  // Use the same sorted array from Game (filters already applied), selected cards float to top
-  const displayCards=[...sorted].sort((a,b)=>{
-    const aS=isSelected(a.id)?0:1;
-    const bS=isSelected(b.id)?0:1;
-    return aS-bS;
-  });
+  // Use sorted array as-is — no reorder on select (avoids scroll-to-top jump)
+  const displayCards=sorted;
 
   const battleLocked=collection.length<DECK_SIZE;
   const deckFull=battleDeck.length===DECK_SIZE;
@@ -159,8 +155,11 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
   return(
     <div style={{paddingBottom:"200px"}}>
 
-      {/* ── Top controls ── */}
-      <div style={{padding:"20px 20px 14px",background:"#060610",position:"sticky",top:0,zIndex:20,borderBottom:"1px solid #0f0f24"}}>
+      {/* ── Sticky top: controls + deck slots ── */}
+      <div style={{position:"sticky",top:0,zIndex:20,background:"#060610",borderBottom:"1px solid #0f0f24"}}>
+
+      {/* Top controls */}
+      <div style={{padding:"20px 20px 14px"}}>
 
         {/* Title */}
         <div style={{fontFamily:"'Orbitron',monospace",fontSize:"20px",fontWeight:900,color:"#4fc3f7",letterSpacing:"2px",marginBottom:"12px"}}>
@@ -185,7 +184,7 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
       </div>
 
       {/* ── Deck Slots — same card size as pack summary (HeroCard size="small" = 138×186) ── */}
-      <div style={{padding:"16px 32px 20px",borderBottom:"1px solid #0f0f24"}}>
+      <div style={{padding:"16px 20px 20px",borderTop:"1px solid #0f0f24"}}>
         <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#a0aac0",letterSpacing:"3px",marginBottom:"12px"}}>
           YOUR DECK · {battleDeck.length}/{DECK_SIZE}
         </div>
@@ -223,6 +222,7 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
           })}
         </div>
       </div>
+      </div>{/* end sticky wrapper */}
 
       {/* ── YOUR COLLECTION row — search + sort + filter button ── */}
       <div style={{padding:"16px 20px 12px",borderBottom:"1px solid #0f0f24"}}>

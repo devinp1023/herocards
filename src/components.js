@@ -129,7 +129,7 @@ function HeroCard({card,size="normal",onClick,selected,showShine=false,fill=fals
       background:"linear-gradient(180deg,#0a0a14 0%,#1a1a24 60%,#2a2a38 100%)",
       border:`2px solid ${selected?"#ffffff":cfg.border}`,
       animation:selected?"none":`${rarityAnim} ${rarityDur} ease-in-out infinite${idleAnim}`,
-      cursor:onClick?"pointer":"default",
+      cursor:onClick?"pointer":undefined,
       display:"flex",flexDirection:"column",
       padding:fill?fPad:D.pad,
       userSelect:"none",overflow:"hidden",

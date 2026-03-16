@@ -1,5 +1,6 @@
 function Game({uid,username,initData,onLogout,isGod=false}){
-  const [tab,setTab]=useState("home");
+  const [tab,setTab]=useState(()=>localStorage.getItem("heroCards_tab")||"home");
+  const setTabPersist=t=>{localStorage.setItem("heroCards_tab",t);setTab(t);};
   const [showPackSelect,setShowPackSelect]=useState(false);
   const [ownedAvatars,setOwnedAvatars]=useState(()=>initData.ownedAvatars||["a1"]);
   const [activeAvatar,setActiveAvatar]=useState(()=>initData.activeAvatar||"a1");
@@ -144,7 +145,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
       advanceQuest('alliance',{alliance:c.alliance});
       advanceQuest('types');
     });
-    setOpeningPack(null);setTab("collection");
+    setOpeningPack(null);setTabPersist("collection");
     saveData(coins,newCol,questDate,questProgress);
   };
 
@@ -325,7 +326,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
       </div>
 
       <div style={{display:"flex",minHeight:"calc(100vh - 57px)"}}>
-        <Sidebar tab={tab} setTab={setTab} selectedCard={selectedCard} collection={collection} isGod={isGod}/>
+        <Sidebar tab={tab} setTab={setTabPersist} selectedCard={selectedCard} collection={collection} isGod={isGod}/>
         <div className="main-pad" style={{flex:1,overflowY:"auto"}}>
 
           {/* HOME */}
@@ -391,7 +392,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
                   🃏 OPEN A PACK
                 </button>
                 <div style={{display:"flex",gap:"22px",width:"100%"}}>
-                  <button onClick={()=>setTab("store")} className="home-store-btn" style={{
+                  <button onClick={()=>setTabPersist("store")} className="home-store-btn" style={{
                     flex:1,background:"linear-gradient(135deg,#ff9800,#ffc04a)",
                     border:"none",borderRadius:"22px",padding:"31px",
                     fontFamily:"'Orbitron',monospace",fontSize:"28px",fontWeight:900,
@@ -400,7 +401,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
                   }}>
                     🛒 STORE
                   </button>
-                  <button onClick={()=>setTab("quests")} className="home-daily-btn" style={{
+                  <button onClick={()=>setTabPersist("quests")} className="home-daily-btn" style={{
                     flex:1,background:"transparent",
                     border:`2px solid ${questUsed?"#1a1a3a":"#4caf5066"}`,
                     borderRadius:"16px",padding:"22px",
@@ -605,7 +606,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
                 <div className="collection-grid" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:"28px"}}>
                   {sorted.map((card,i)=>(
                     <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"7px"}}>
-                      <CardWrapper rarity={card.rarity} contain="layout" onClick={()=>{setNewCardIds(prev=>{const n=new Set(prev);n.delete(card.id);return n;});setExpandedDesc(false);setSelectedCard(card);setTab("detail");}}>
+                      <CardWrapper rarity={card.rarity} contain="layout" onClick={()=>{setNewCardIds(prev=>{const n=new Set(prev);n.delete(card.id);return n;});setExpandedDesc(false);setSelectedCard(card);setTabPersist("detail");}}>
                         <HeroCard card={card} size="normal" fill/>
                         {newCardIds.has(card.id)&&(
                           <div style={{position:"absolute",top:"6px",left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#00e676,#69f0ae)",borderRadius:"6px",padding:"3px 10px",fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#003300",fontWeight:900,letterSpacing:"1px",pointerEvents:"none",zIndex:10,whiteSpace:"nowrap",boxShadow:"0 0 8px #00e67688"}}>NEW</div>
@@ -631,7 +632,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
               <div style={{padding:"34px 48px",animation:"fadeIn 0.3s ease-out",maxWidth:"1500px",margin:"0 auto"}}>
 
                 {/* Back button top left */}
-                <button onClick={()=>setTab("collection")} style={{background:"transparent",border:"2px solid rgba(255,255,255,0.4)",borderRadius:"13px",padding:"13px 28px",color:"#ffffff",cursor:"pointer",fontFamily:"'Orbitron',monospace",fontSize:"18px",letterSpacing:"1.2px",marginBottom:"39px",display:"inline-flex",alignItems:"center",gap:"8px"}}>
+                <button onClick={()=>setTabPersist("collection")} style={{background:"transparent",border:"2px solid rgba(255,255,255,0.4)",borderRadius:"13px",padding:"13px 28px",color:"#ffffff",cursor:"pointer",fontFamily:"'Orbitron',monospace",fontSize:"18px",letterSpacing:"1.2px",marginBottom:"39px",display:"inline-flex",alignItems:"center",gap:"8px"}}>
                   ← BACK
                 </button>
 
@@ -994,7 +995,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
             const diffColors={Easy:{color:"#4caf50",bg:"#4caf5018",border:"#4caf5044"},Medium:{color:"#ff9800",bg:"#ff980018",border:"#ff980044"},Hard:{color:"#f44336",bg:"#f4433618",border:"#f4433644"}};
             return(
               <div style={{padding:"40px 32px",animation:"fadeIn 0.3s ease-out",maxWidth:"900px",margin:"0 auto"}}>
-                <button onClick={()=>setTab("home")} style={{background:"transparent",border:"2px solid rgba(255,255,255,0.4)",borderRadius:"9px",padding:"9px 20px",color:"#ffffff",cursor:"pointer",fontFamily:"'Orbitron',monospace",fontSize:"13px",letterSpacing:"1.2px",marginBottom:"24px",display:"inline-flex",alignItems:"center",gap:"6px"}}>← BACK</button>
+                <button onClick={()=>setTabPersist("home")} style={{background:"transparent",border:"2px solid rgba(255,255,255,0.4)",borderRadius:"9px",padding:"9px 20px",color:"#ffffff",cursor:"pointer",fontFamily:"'Orbitron',monospace",fontSize:"13px",letterSpacing:"1.2px",marginBottom:"24px",display:"inline-flex",alignItems:"center",gap:"6px"}}>← BACK</button>
                 <div className="quests-title" style={{fontFamily:"'Orbitron',monospace",fontSize:"32px",fontWeight:900,color:"#4caf50",letterSpacing:"2px",marginBottom:"6px"}}>⚡ DAILY QUESTS</div>
                 <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"18px",color:"#d0d4e8",marginBottom:"32px"}}>
                   Complete quests to earn XP and credits. Resets daily.
@@ -1277,7 +1278,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
         document.body
       )}
 
-      <BottomNav tab={tab} setTab={setTab} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>
+      <BottomNav tab={tab} setTab={setTabPersist} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>
       {openingPack&&<PackAnim cards={openingPack} onDone={onPackDone} packId={selectedPack} collection={collection} onTradeDupes={onTradeDupes}/>}
     </div>
   );
@@ -1297,7 +1298,7 @@ function App(){
   };
 
   useEffect(()=>{
-    if(godMode){setState("auth");return;}
+    if(godMode){setUserData(GOD_USER);setState("game");return;}
     const unsub=auth.onAuthStateChanged(async(user)=>{
       if(user){
         try{

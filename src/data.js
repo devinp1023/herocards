@@ -12,6 +12,7 @@ try {
     });
   }
   auth = firebase.auth();
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
   db = firebase.firestore();
   storage = firebase.storage();
 } catch(e) {
