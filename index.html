@@ -198,8 +198,7 @@ input::placeholder{color:#7a82a0}
 @media (max-width:768px) {
   .battle-card-grid { grid-template-columns:repeat(2,1fr); gap:8px; }
   .battle-tray-fixed { bottom:0; }
-  .deck-builder-sticky { position:relative !important; top:auto !important; transform:none !important; }
-  .deck-slots-scroll { overflow-x:auto; flex-wrap:nowrap !important; padding-bottom:4px; }
+  .deck-slots-scroll { padding-bottom:4px; }
   .deck-slots-scroll::-webkit-scrollbar { height:3px; }
   .deck-slots-scroll::-webkit-scrollbar-track { background:transparent; }
   .deck-slots-scroll::-webkit-scrollbar-thumb { background:#2a2a4a; border-radius:2px; }
@@ -2018,7 +2017,8 @@ function Game({uid,username,initData,onLogout,isGod=false}){
                 <div className="detail-flex" style={{display:"flex",gap:"67px",alignItems:"flex-start",flexWrap:"wrap",justifyContent:"flex-start"}}>
 
                   {/* Card — fill inside fixed-width aspect-ratio container */}
-                  <div className="detail-card" style={{flexShrink:0,width:"320px"}}>
+                  {/* Override --sidebar-w/--card-col so fill-mode fw always = 320px */}
+                  <div className="detail-card" style={{flexShrink:0,width:"320px","--sidebar-w":"calc(100vw - 320px)","--card-col":"1"}}>
                     <CardWrapper rarity={card.rarity}>
                       <HeroCard card={card} size="normal" fill showShine/>
                     </CardWrapper>
@@ -3449,21 +3449,23 @@ function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFil
   }
 
   return(
-    <DeckBuilder
-      collection={collection}
-      sorted={sorted}
-      filter={filter} setFilter={setFilter}
-      rarityFilter={rarityFilter} setRarityFilter={setRarityFilter}
-      sortBy={sortBy} setSortBy={setSortBy}
-      search={search} setSearch={setSearch}
-      packFilter={packFilter} setPackFilter={setPackFilter}
-      rarities={rarities} types={types}
-      battleDeck={battleDeck}
-      setBattleDeck={setBattleDeck}
-      battleCooldowns={battleCooldowns}
-      onChooseOpponent={()=>setScreen('opponent')}
-      notify={notify}
-    />
+    <div style={{height:"100%"}}>
+      <DeckBuilder
+        collection={collection}
+        sorted={sorted}
+        filter={filter} setFilter={setFilter}
+        rarityFilter={rarityFilter} setRarityFilter={setRarityFilter}
+        sortBy={sortBy} setSortBy={setSortBy}
+        search={search} setSearch={setSearch}
+        packFilter={packFilter} setPackFilter={setPackFilter}
+        rarities={rarities} types={types}
+        battleDeck={battleDeck}
+        setBattleDeck={setBattleDeck}
+        battleCooldowns={battleCooldowns}
+        onChooseOpponent={()=>setScreen('opponent')}
+        notify={notify}
+      />
+    </div>
   );
 }
 
@@ -3475,24 +3477,17 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
   const [openSections,setOpenSections]=useState({pack:true,rarity:true,type:true});
   const toggleSection=s=>setOpenSections(prev=>({...prev,[s]:!prev[s]}));
   const activeFilters=[packFilter!==0,rarityFilter!=='All',filter!=='All'].filter(Boolean).length;
-  const containerRef=useRef(null);
+  const collectionScrollRef=useRef(null);
   const [isSticky,setIsSticky]=useState(false);
-  useEffect(()=>{
-    // Walk up DOM to find the scrollable ancestor (main-pad)
-    const getScroller=el=>{
-      let node=el?.parentElement;
-      while(node){
-        const {overflowY}=getComputedStyle(node);
-        if(overflowY==='auto'||overflowY==='scroll')return node;
-        node=node.parentElement;
-      }
-      return window;
-    };
-    const scroller=getScroller(containerRef.current);
-    const onScroll=()=>setIsSticky((scroller===window?window.scrollY:scroller.scrollTop)>10);
-    scroller.addEventListener('scroll',onScroll,{passive:true});
-    return()=>scroller.removeEventListener('scroll',onScroll);
-  },[]);
+  const deckScrollRef=useRef(null);
+  const [deckScroll,setDeckScroll]=useState({left:false,right:false});
+  const updateDeckScroll=()=>{
+    const el=deckScrollRef.current;
+    if(!el)return;
+    setDeckScroll({left:el.scrollLeft>4,right:el.scrollLeft<el.scrollWidth-el.clientWidth-4});
+  };
+  useEffect(()=>{updateDeckScroll();},[battleDeck]);
+  const handleCollectionScroll=()=>setIsSticky((collectionScrollRef.current?.scrollTop||0)>10);
 
   // Count selected cards by rarity
   const rarityCounts=(()=>{
@@ -3550,10 +3545,10 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
   }
 
   return(
-    <div ref={containerRef} style={{paddingBottom:"200px"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
 
-      {/* ── Sticky top: controls + deck slots ── */}
-      <div className="deck-builder-sticky" style={{position:"sticky",top:0,zIndex:100,background:"#060610",transform:"translateZ(0)",borderBottom:isSticky?"2px solid rgba(255,255,255,0.6)":"none"}}>
+      {/* ── Pinned top: controls + deck slots ── */}
+      <div style={{background:"#060610",zIndex:100,flexShrink:0,borderBottom:isSticky?"2px solid rgba(255,255,255,0.6)":"none"}}>
 
       {/* Top controls */}
       <div style={{padding:isSticky?"8px 20px 6px":"20px 20px 14px"}}>
@@ -3580,12 +3575,15 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
 
       </div>
 
-      {/* ── Deck Slots — same card size as pack summary (HeroCard size="small" = 138×186) ── */}
+      {/* ── Deck Slots ── */}
       <div style={{padding:isSticky?"8px 20px 10px":"16px 20px 20px",borderTop:"1px solid #0f0f24"}}>
         <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#a0aac0",letterSpacing:"3px",marginBottom:"12px"}}>
           YOUR DECK · {battleDeck.length}/{DECK_SIZE}
         </div>
-        <div className="deck-slots-scroll" style={{display:"flex",flexWrap:"wrap",gap:"8px"}}>
+        <div style={{position:"relative",display:"flex",alignItems:"center",gap:"6px"}}>
+          {/* Left arrow */}
+          <button onClick={()=>{deckScrollRef.current.scrollBy({left:-300,behavior:"smooth"});}} style={{flexShrink:0,width:"28px",height:"28px",borderRadius:"50%",background:deckScroll.left?"#1a1a3a":"transparent",border:`1px solid ${deckScroll.left?"#4fc3f7":"rgba(255,255,255,0.12)"}`,color:deckScroll.left?"#4fc3f7":"rgba(255,255,255,0.2)",cursor:deckScroll.left?"pointer":"default",fontSize:"12px",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s"}}>◀</button>
+          <div ref={deckScrollRef} className="deck-slots-scroll" style={{display:"flex",flexWrap:"nowrap",gap:"8px",overflowX:"auto",flex:1}} onScroll={updateDeckScroll}>
           {Array.from({length:DECK_SIZE}).map((_,i)=>{
             const cardId=battleDeck[i];
             const card=cardId?(collection.find(c=>c.id===cardId)||ALL_CARDS.find(c=>c.id===cardId)):null;
@@ -3617,9 +3615,15 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
               </div>
             );
           })}
-        </div>
+          </div>{/* end scroll container */}
+          {/* Right arrow */}
+          <button onClick={()=>{deckScrollRef.current.scrollBy({left:300,behavior:"smooth"});}} style={{flexShrink:0,width:"28px",height:"28px",borderRadius:"50%",background:deckScroll.right?"#1a1a3a":"transparent",border:`1px solid ${deckScroll.right?"#4fc3f7":"rgba(255,255,255,0.12)"}`,color:deckScroll.right?"#4fc3f7":"rgba(255,255,255,0.2)",cursor:deckScroll.right?"pointer":"default",fontSize:"12px",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s"}}>▶</button>
+        </div>{/* end arrow+scroll row */}
       </div>
       </div>{/* end sticky wrapper */}
+
+      {/* ── Scrollable collection ── */}
+      <div ref={collectionScrollRef} style={{flex:1,overflowY:"auto",position:"relative"}} onScroll={handleCollectionScroll}>
 
       {/* ── YOUR COLLECTION row — search + sort + filter button ── */}
       <div style={{padding:"16px 20px 12px",borderBottom:"1px solid #0f0f24"}}>
@@ -3691,6 +3695,10 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
           })}
         </div>
       </div>
+
+      {/* spacer so cards aren't hidden behind tray */}
+      <div style={{height:"200px"}}/>
+      </div>{/* end scrollable collection */}
 
       {/* ── Filter drawer ── */}
       {filterOpen&&(<div className="battle-filter-backdrop" onClick={()=>setFilterOpen(false)}/>)}
