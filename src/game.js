@@ -1143,6 +1143,13 @@ function Game({uid,username,initData,onLogout,isGod=false}){
           {tab==="battle"&&(
             <BattleTab
               collection={collection}
+              sorted={sorted}
+              filter={filter} setFilter={setFilter}
+              rarityFilter={rarityFilter} setRarityFilter={setRarityFilter}
+              sortBy={sortBy} setSortBy={setSortBy}
+              search={search} setSearch={setSearch}
+              packFilter={packFilter} setPackFilter={setPackFilter}
+              rarities={rarities} types={types}
               battleDeck={battleDeck}
               setBattleDeck={setBattleDeck}
               battleTier={battleTier}

@@ -79,6 +79,33 @@ check('Avatar store', script.includes('const AVATARS='));
 check('Featured deal', script.includes('FEATURED DEAL'));
 check('ReactDOM.createRoot', script.includes('ReactDOM.createRoot'));
 
+console.log('\n=== BATTLE SYSTEM ===');
+// Engine constants
+check('BATTLE_TYPE_MAP', script.includes('BATTLE_TYPE_MAP'));
+check('BATTLE_REWARDS', script.includes('BATTLE_REWARDS'));
+check('ABILITY_POOL', script.includes('ABILITY_POOL'));
+// Engine functions
+check('runBattle', script.includes('function runBattle('));
+check('calcBattleRewards', script.includes('function calcBattleRewards('));
+check('isCardOnCooldown', script.includes('function isCardOnCooldown('));
+check('getTypeMultiplier', script.includes('function getTypeMultiplier('));
+// UI constants
+check('DECK_SIZE', script.includes('DECK_SIZE'));
+check('BATTLE_RARITY_LIMITS', script.includes('BATTLE_RARITY_LIMITS'));
+check('TIER_INFO', script.includes('TIER_INFO'));
+// UI components
+check('BattleTab', script.includes('function BattleTab('));
+check('DeckBuilder', script.includes('function DeckBuilder('));
+check('BattleResult', script.includes('function BattleResult('));
+// Game integration
+check('battleDeck state', script.includes('battleDeck,setBattleDeck'));
+check('battleCooldowns state', script.includes('battleCooldowns,setBattleCooldowns'));
+check('onBattleComplete', script.includes('const onBattleComplete='));
+check('Battle tab render', script.includes('tab==="battle"'));
+check('Battle nav item', script.includes('"battle"') && script.includes('"⚔️"'));
+// CSS
+check('battle-tray-fixed CSS', html.includes('battle-tray-fixed'));
+
 console.log(`\n${'='.repeat(30)}`);
 console.log(`RESULT: ${passed} passed, ${failed} failed`);
 if(failed>0) process.exit(1);

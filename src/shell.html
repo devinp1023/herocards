@@ -190,9 +190,10 @@ input::placeholder{color:#7a82a0}
 
 /* ── Battle ── */
 .battle-card-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.battle-tray-fixed { position:fixed; bottom:0; left:var(--sidebar-w); right:0; z-index:200; }
 @media (max-width:768px) {
   .battle-card-grid { grid-template-columns:repeat(2,1fr); gap:8px; }
-  .battle-tray { bottom:60px !important; }
+  .battle-tray-fixed { bottom:60px; }
 }
 img{image-rendering:-webkit-optimize-contrast;}
 </style>
