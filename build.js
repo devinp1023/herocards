@@ -14,7 +14,7 @@ const SOURCES = [
   'src/components.js',
   'src/game.js',
   'src/battle-engine.js',
-  // Future: 'src/battle-ui.js',
+  'src/battle-ui.js',
 ];
 
 const shell = fs.readFileSync(path.join(BASE, 'src/shell.html'), 'utf8');

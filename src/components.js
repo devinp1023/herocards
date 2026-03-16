@@ -840,7 +840,7 @@ function CardCMS({onSave,notify}){
 
 /* ── Sidebar ── */
 function Sidebar({tab,setTab,selectedCard,collection,isGod=false}){
-  const items=[{id:"home",icon:"🏠",l:"Home"},{id:"collection",icon:"📋",l:"Collection"},{id:"store",icon:"🛒",l:"Store"},{id:"quests",icon:"⚡",l:"Quests"},{id:"achievements",icon:"🏆",l:"Achievements"},...(isGod?[{id:"cms",icon:"✏️",l:"Card Editor"}]:[])];
+  const items=[{id:"home",icon:"🏠",l:"Home"},{id:"collection",icon:"📋",l:"Collection"},{id:"store",icon:"🛒",l:"Store"},{id:"quests",icon:"⚡",l:"Quests"},{id:"achievements",icon:"🏆",l:"Achievements"},{id:"battle",icon:"⚔️",l:"Battle"},...(isGod?[{id:"cms",icon:"✏️",l:"Card Editor"}]:[])];
   return(
     <div className="sidebar" style={{flexDirection:"column",width:"354px",flexShrink:0,background:"#08081a",borderRight:"1px solid #12122a",padding:"25px 0px",position:"sticky",top:"57px",height:"calc(100vh - 57px)",overflowY:"auto"}}>
       {items.map(it=><button key={it.id} onClick={()=>setTab(it.id)} style={{display:"flex",alignItems:"center",gap:"17px",padding:"20px 29px",background:tab===it.id?"#4fc3f711":"transparent",border:"none",borderLeft:tab===it.id?"3px solid #4fc3f7":"3px solid transparent",color:tab===it.id?"#4fc3f7":"#d0d4e8",fontFamily:"'Rajdhani',sans-serif",fontSize:"25px",letterSpacing:"1.2px",cursor:"pointer",transition:"all 0.2s",width:"100%",textAlign:"left",fontWeight:600}}><span style={{fontSize:"25px"}}>{it.icon}</span>{it.l}</button>)}
@@ -860,7 +860,7 @@ function Sidebar({tab,setTab,selectedCard,collection,isGod=false}){
 /* ── Bottom nav ── */
 function BottomNav({tab,setTab,selectedCard,isGod=false,onLogout}){
   const [open,setOpen]=useState(false);
-  const items=[{id:"home",icon:"🏠",l:"Home"},{id:"collection",icon:"📋",l:"Cards"},{id:"store",icon:"🛒",l:"Store"},{id:"quests",icon:"⚡",l:"Quests"},{id:"achievements",icon:"🏆",l:"Achievements"},...(isGod?[{id:"cms",icon:"✏️",l:"Card Editor"}]:[])];
+  const items=[{id:"home",icon:"🏠",l:"Home"},{id:"collection",icon:"📋",l:"Cards"},{id:"store",icon:"🛒",l:"Store"},{id:"quests",icon:"⚡",l:"Quests"},{id:"achievements",icon:"🏆",l:"Achievements"},{id:"battle",icon:"⚔️",l:"Battle"},...(isGod?[{id:"cms",icon:"✏️",l:"Card Editor"}]:[])];
   return(
     <div className="bottom-nav">
       <button className="hamburger-btn" onClick={()=>setOpen(o=>!o)} aria-label="Menu">

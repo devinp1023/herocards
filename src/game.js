@@ -36,6 +36,9 @@ function Game({uid,username,initData,onLogout,isGod=false}){
   const [newCardIds,setNewCardIds]=useState(new Set());
   const [expandedDesc,setExpandedDesc]=useState(false);
   const [storeTab,setStoreTab]=useState("avatars");
+  const [battleDeck,setBattleDeck]=useState([]);
+  const [battleTier,setBattleTier]=useState(1);
+  const [battleCooldowns,setBattleCooldowns]=useState({});
   const saveTimer=useRef(null);
 
   const questUsed=!isNewDay&&todaysQuests.every(q=>activeQuestProgress[q.id]>=(q.req.n||1));
@@ -172,6 +175,27 @@ function Game({uid,username,initData,onLogout,isGod=false}){
     setPackTradedIds(new Set(dupes.map(d=>d.id)));
     dupes.forEach(()=>{gainXp(XP_AWARDS.trade);advanceQuest('trades');});
     checkAchievements(collection,null,newTradesCompleted,nc,null,null);
+    saveData(nc,collection,questDate,questProgress);
+  };
+
+  const onBattleComplete=(result,deckCardIds,tier,rewards)=>{
+    // Award credits + XP
+    const nc=coins+(rewards.credits||0);
+    setCoins(nc);
+    gainXp(rewards.xp||0);
+    // Put used cards on cooldown until next midnight
+    const expiry=getNextMidnight();
+    setBattleCooldowns(prev=>{
+      const next={...prev};
+      deckCardIds.forEach(id=>{next[id]=expiry;});
+      return next;
+    });
+    // Notify
+    if(result.winner==='player'){
+      notify(`⚔️ VICTORY! +${rewards.credits}💎 +${rewards.xp}XP`,"#ffd700");
+    } else {
+      notify(`💀 Defeat — +${rewards.credits}💎 +${rewards.xp}XP`,"#ef5350");
+    }
     saveData(nc,collection,questDate,questProgress);
   };
 
@@ -1114,6 +1138,22 @@ function Game({uid,username,initData,onLogout,isGod=false}){
 
           {/* CMS */}
           {tab==="cms"&&isGod&&<CardCMS notify={notify}/>}
+
+          {/* BATTLE */}
+          {tab==="battle"&&(
+            <BattleTab
+              collection={collection}
+              battleDeck={battleDeck}
+              setBattleDeck={setBattleDeck}
+              battleTier={battleTier}
+              setBattleTier={setBattleTier}
+              battleCooldowns={battleCooldowns}
+              onBattleComplete={onBattleComplete}
+              notify={notify}
+              gainXp={gainXp}
+              isGod={isGod}
+            />
+          )}
 
         </div>
       </div>
