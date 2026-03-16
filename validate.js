@@ -111,6 +111,8 @@ check('Battle tab render', script.includes('tab==="battle"'));
 check('Battle nav item', script.includes('"battle"') && script.includes('"⚔️"'));
 // CSS
 check('battle-tray-fixed CSS', html.includes('battle-tray-fixed'));
+check('battle-filter-drawer CSS', html.includes('battle-filter-drawer'));
+check('battle-filter-backdrop CSS', html.includes('battle-filter-backdrop'));
 
 console.log(`\n${'='.repeat(30)}`);
 console.log(`RESULT: ${passed} passed, ${failed} failed`);

@@ -191,6 +191,10 @@ input::placeholder{color:#7a82a0}
 /* ── Battle ── */
 .battle-card-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
 .battle-tray-fixed { position:fixed; bottom:0; left:var(--sidebar-w); right:0; z-index:200; }
+.battle-filter-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:350; }
+.battle-filter-drawer { position:fixed; top:0; right:0; bottom:0; width:300px; background:#08081a; border-left:1px solid #12122a; z-index:400; transform:translateX(100%); transition:transform 0.25s ease; overflow-y:auto; }
+.battle-filter-drawer.open { transform:translateX(0); }
+@media(max-width:480px){ .battle-filter-drawer { width:100%; } }
 @media (max-width:768px) {
   .battle-card-grid { grid-template-columns:repeat(2,1fr); gap:8px; }
   .battle-tray-fixed { bottom:60px; }

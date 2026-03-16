@@ -191,6 +191,10 @@ input::placeholder{color:#7a82a0}
 /* ── Battle ── */
 .battle-card-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
 .battle-tray-fixed { position:fixed; bottom:0; left:var(--sidebar-w); right:0; z-index:200; }
+.battle-filter-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:350; }
+.battle-filter-drawer { position:fixed; top:0; right:0; bottom:0; width:300px; background:#08081a; border-left:1px solid #12122a; z-index:400; transform:translateX(100%); transition:transform 0.25s ease; overflow-y:auto; }
+.battle-filter-drawer.open { transform:translateX(0); }
+@media(max-width:480px){ .battle-filter-drawer { width:100%; } }
 @media (max-width:768px) {
   .battle-card-grid { grid-template-columns:repeat(2,1fr); gap:8px; }
   .battle-tray-fixed { bottom:60px; }
@@ -645,10 +649,10 @@ function HeroCard({card,size="normal",onClick,selected,showShine=false,fill=fals
 }
 
 /* ── Card wrapper — single source of truth for fill-mode card containers ── */
-function CardWrapper({width="100%",rarity,onClick,className,flyAnim,zIndex,contain,background,flexShrink,children}){
+function CardWrapper({width="100%",rarity,onClick,className,flyAnim,zIndex,contain,background,flexShrink,cursor,children}){
   const idleAnim=rarity==="Legendary"?"legendaryFloat 3s ease-in-out infinite":rarity==="Epic"?"epicPulse 2.5s ease-in-out infinite":"none";
   return(
-    <div className={className} onClick={onClick} style={{position:"relative",width:width,aspectRatio:"201/290",borderRadius:"13px",overflow:"hidden",animation:flyAnim||idleAnim,zIndex:zIndex,contain:contain,background:background,flexShrink:flexShrink}}>
+    <div className={className} onClick={onClick} style={{position:"relative",width:width,aspectRatio:"201/290",borderRadius:"13px",overflow:"hidden",animation:flyAnim||idleAnim,zIndex:zIndex,contain:contain,background:background,flexShrink:flexShrink,cursor:cursor}}>
       {children}
     </div>
   );
@@ -3460,6 +3464,10 @@ function BattleTab({collection,sorted,filter,setFilter,rarityFilter,setRarityFil
 function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityFilter,sortBy,setSortBy,search,setSearch,packFilter,setPackFilter,rarities,types,battleDeck,setBattleDeck,battleCooldowns,onChooseOpponent,notify}){
 
   const [hoveredSlot,setHoveredSlot]=useState(null);
+  const [filterOpen,setFilterOpen]=useState(false);
+  const [openSections,setOpenSections]=useState({pack:true,rarity:true,type:true});
+  const toggleSection=s=>setOpenSections(prev=>({...prev,[s]:!prev[s]}));
+  const activeFilters=[packFilter!==0,rarityFilter!=='All',filter!=='All'].filter(Boolean).length;
 
   // Count selected cards by rarity
   const rarityCounts=(()=>{
@@ -3523,68 +3531,37 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
   return(
     <div style={{paddingBottom:"200px"}}>
 
-      {/* ── Top controls — mirrors Collection header ── */}
-      <div style={{padding:"29px 32px 14px",background:"#060610",position:"sticky",top:0,zIndex:20,borderBottom:"1px solid #0f0f24"}}>
+      {/* ── Top controls ── */}
+      <div style={{padding:"20px 20px 14px",background:"#060610",position:"sticky",top:0,zIndex:20,borderBottom:"1px solid #0f0f24"}}>
 
         {/* Title */}
-        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"20px",fontWeight:900,color:"#4fc3f7",letterSpacing:"2px",marginBottom:"14px"}}>
+        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"20px",fontWeight:900,color:"#4fc3f7",letterSpacing:"2px",marginBottom:"12px"}}>
           ⚔️ BUILD YOUR DECK
         </div>
 
         {/* Rarity limit badges */}
-        <div style={{display:"flex",gap:"6px",marginBottom:"12px",flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:"6px",marginBottom:"14px",flexWrap:"wrap"}}>
           {['Legendary','Epic','Rare'].map(r=>{
             const lim=BATTLE_RARITY_LIMITS[r];
             const cnt=rarityCounts[r];
             const cfg=RC[r];
             return(
               <div key={r} style={{background:cnt>0?`${cfg.color}15`:"transparent",border:`1px solid ${cnt>0?cfg.color+"44":"rgba(255,255,255,0.15)"}`,borderRadius:"7px",padding:"3px 10px",fontFamily:"monospace",fontSize:"13px",color:cnt>=lim?cfg.color:"#c0c8e0"}}>
-                <span style={{color:cfg.color}}>{r[0]}</span>:{cnt}/{lim}
+                <span style={{color:cfg.color}}>{r}</span>: {cnt}/{lim}
               </div>
             );
           })}
-          <div style={{background:"transparent",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"7px",padding:"3px 10px",fontFamily:"monospace",fontSize:"13px",color:"#c0c8e0"}}>U/C: ∞</div>
+          <div style={{background:"transparent",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"7px",padding:"3px 10px",fontFamily:"monospace",fontSize:"13px",color:"#c0c8e0"}}>Uncommon / Common: ∞</div>
         </div>
 
-        {/* Pack filter — same as Collection */}
-        <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"8px"}}>
-          {[{id:0,label:"All",emoji:"📋",color:"#4fc3f7"},...Object.values(PACKS).map(p=>({id:p.id,label:p.name,emoji:p.emoji,color:p.color}))].map(p=>(
-            <button key={p.id} onClick={()=>setPackFilter(p.id)} className="pack-filter-btn" style={{display:"flex",alignItems:"center",gap:"6px",padding:"8px 14px",borderRadius:"14px",background:packFilter===p.id?`${p.color}22`:"transparent",border:`1.5px solid ${packFilter===p.id?p.color:"rgba(255,255,255,0.2)"}`,color:packFilter===p.id?p.color:"#c0c4d8",fontFamily:"'Orbitron',monospace",fontSize:"13px",cursor:"pointer",fontWeight:600,letterSpacing:"0.5px",transition:"all 0.15s",whiteSpace:"nowrap"}}>
-              <span>{p.emoji}</span><span>{p.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Search + sort — same as Collection */}
-        <div style={{display:"flex",gap:"8px",marginBottom:"8px",alignItems:"center"}}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Search..." className="collection-search" style={{flex:1,minWidth:0,fontSize:"15px",marginBottom:"0"}}/>
-          <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="sort-select" style={{background:"#0a0a20",border:"1px solid #2a2a4a",borderRadius:"10px",padding:"8px 10px",color:"#ffffff",fontFamily:"'Rajdhani',sans-serif",fontSize:"15px",cursor:"pointer",outline:"none",flexShrink:0}}>
-            <option value="rarity">Rarity</option>
-            <option value="name_az">A→Z</option>
-            <option value="name_za">Z→A</option>
-            <option value="count_hl">Most Owned</option>
-            <option value="acquired_new">Newest</option>
-            <option value="acquired_old">Oldest</option>
-          </select>
-        </div>
-
-        {/* Rarity filter pills — same as Collection */}
-        <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"4px"}}>
-          {rarities.map(r=>{const cfg=r==="All"?{color:"#4fc3f7"}:RC[r];return<button key={r} onClick={()=>setRarityFilter(r)} className="rarity-filter-btn" style={{padding:"5px 12px",borderRadius:"20px",background:rarityFilter===r?`${cfg.color}33`:"transparent",border:`1px solid ${rarityFilter===r?cfg.color:"rgba(255,255,255,0.2)"}`,color:rarityFilter===r?cfg.color:"#c0c4d8",fontFamily:"'Rajdhani',sans-serif",fontSize:"14px",cursor:"pointer",fontWeight:600,transition:"all 0.15s",whiteSpace:"nowrap"}}>{r}</button>;})}
-        </div>
-
-        {/* Type filter pills — same as Collection */}
-        <div style={{display:"flex",gap:"6px",overflowX:"auto",paddingBottom:"4px",WebkitOverflowScrolling:"touch",scrollbarWidth:"none"}}>
-          {types.map(t=><button key={t} onClick={()=>setFilter(t)} className="type-filter-btn" style={{padding:"4px 12px",borderRadius:"20px",background:filter===t?"#4fc3f722":"transparent",border:`1px solid ${filter===t?"#4fc3f7":"rgba(255,255,255,0.2)"}`,color:filter===t?"#4fc3f7":"#c0c4d8",fontFamily:"'Rajdhani',sans-serif",fontSize:"13px",cursor:"pointer",fontWeight:600,transition:"all 0.15s",flexShrink:0,whiteSpace:"nowrap"}}>{t}</button>)}
-        </div>
       </div>
 
-      {/* ── Deck Slots — 5×2 grid of card placeholders ── */}
+      {/* ── Deck Slots — same card size as pack summary (HeroCard size="small" = 138×186) ── */}
       <div style={{padding:"16px 32px 20px",borderBottom:"1px solid #0f0f24"}}>
         <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",color:"#a0aac0",letterSpacing:"3px",marginBottom:"12px"}}>
           YOUR DECK · {battleDeck.length}/{DECK_SIZE}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:"8px"}}>
+        <div style={{display:"flex",flexWrap:"wrap",gap:"8px"}}>
           {Array.from({length:DECK_SIZE}).map((_,i)=>{
             const cardId=battleDeck[i];
             const card=cardId?(collection.find(c=>c.id===cardId)||ALL_CARDS.find(c=>c.id===cardId)):null;
@@ -3592,32 +3569,50 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
 
             if(card){
               return(
-                <div key={i} style={{position:"relative",cursor:"pointer"}}
+                <div key={i} style={{position:"relative",width:"138px",height:"186px",flexShrink:0,cursor:"pointer"}}
                   onMouseEnter={()=>setHoveredSlot(i)}
                   onMouseLeave={()=>setHoveredSlot(null)}
                   onClick={()=>toggleCard(card)}
                 >
-                  <CardWrapper rarity={card.rarity}>
-                    <HeroCard card={card} size="normal" fill/>
-                    {onCd&&(
-                      <div style={{position:"absolute",inset:0,background:"rgba(6,6,16,0.7)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",borderRadius:"13px"}}>⏱️</div>
-                    )}
-                    {hoveredSlot===i&&(
-                      <div style={{position:"absolute",inset:0,background:"rgba(6,6,16,0.78)",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"13px",pointerEvents:"none"}}>
-                        <div style={{color:"#ef5350",fontFamily:"'Orbitron',monospace",fontSize:"10px",fontWeight:900,letterSpacing:"1px",textAlign:"center",lineHeight:1.6}}>✕<br/>REMOVE</div>
-                      </div>
-                    )}
-                  </CardWrapper>
+                  <HeroCard card={card} size="small"/>
+                  {onCd&&(
+                    <div style={{position:"absolute",inset:0,background:"rgba(6,6,16,0.7)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"16px",borderRadius:"9px"}}>⏱️</div>
+                  )}
+                  {hoveredSlot===i&&(
+                    <div style={{position:"absolute",inset:0,background:"rgba(6,6,16,0.78)",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"9px",pointerEvents:"none"}}>
+                      <div style={{color:"#ef5350",fontFamily:"'Orbitron',monospace",fontSize:"9px",fontWeight:900,letterSpacing:"1px",textAlign:"center",lineHeight:1.6}}>✕<br/>REMOVE</div>
+                    </div>
+                  )}
                 </div>
               );
             }
 
             return(
-              <div key={i} style={{aspectRatio:"201/290",border:"2px dashed rgba(79,195,247,0.45)",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(79,195,247,0.04)",color:"rgba(79,195,247,0.5)",fontFamily:"monospace",fontSize:"18px",fontWeight:700}}>
+              <div key={i} style={{width:"138px",height:"186px",flexShrink:0,border:"2px dashed rgba(79,195,247,0.45)",borderRadius:"9px",display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(79,195,247,0.04)",color:"rgba(79,195,247,0.5)",fontFamily:"monospace",fontSize:"16px",fontWeight:700}}>
                 {i+1}
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* ── YOUR COLLECTION row — search + sort + filter button ── */}
+      <div style={{padding:"16px 20px 12px",borderBottom:"1px solid #0f0f24"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:"10px",color:"#c0c8e0",letterSpacing:"2px",flexShrink:0,whiteSpace:"nowrap"}}>YOUR COLLECTION</div>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Search..." className="collection-search" style={{flex:1,minWidth:0,fontSize:"14px",marginBottom:"0"}}/>
+          <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="sort-select" style={{background:"#0a0a20",border:"1px solid #2a2a4a",borderRadius:"10px",padding:"7px 8px",color:"#ffffff",fontFamily:"'Rajdhani',sans-serif",fontSize:"14px",cursor:"pointer",outline:"none",flexShrink:0}}>
+            <option value="rarity">Rarity</option>
+            <option value="name_az">A→Z</option>
+            <option value="name_za">Z→A</option>
+            <option value="count_hl">Most Owned</option>
+            <option value="acquired_new">Newest</option>
+            <option value="acquired_old">Oldest</option>
+          </select>
+          <button onClick={()=>setFilterOpen(true)} style={{position:"relative",background:"#0a0a20",border:`1px solid ${activeFilters>0?"#4fc3f7":"#2a2a4a"}`,borderRadius:"10px",padding:"7px 12px",color:activeFilters>0?"#4fc3f7":"#c0c8e0",fontFamily:"'Orbitron',monospace",fontSize:"11px",cursor:"pointer",flexShrink:0,letterSpacing:"0.5px",transition:"border-color 0.15s,color 0.15s",whiteSpace:"nowrap"}}>
+            ⚙ FILTERS
+            {activeFilters>0&&(<span style={{position:"absolute",top:"-6px",right:"-6px",background:"#4fc3f7",color:"#060610",borderRadius:"50%",width:"16px",height:"16px",fontSize:"10px",fontFamily:"monospace",fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center"}}>{activeFilters}</span>)}
+          </button>
         </div>
       </div>
 
@@ -3637,7 +3632,7 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
 
             return(
               <div key={card.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"7px",opacity:disabled?0.35:1,cursor:disabled?"not-allowed":"pointer",transition:"opacity 0.15s"}}>
-                <CardWrapper rarity={card.rarity} onClick={()=>!disabled&&toggleCard(card)}>
+                <CardWrapper rarity={card.rarity} onClick={()=>!disabled&&toggleCard(card)} cursor={disabled?"not-allowed":"pointer"}>
                   <HeroCard card={card} size="normal" fill/>
 
                   {/* Cooldown overlay */}
@@ -3669,6 +3664,76 @@ function DeckBuilder({collection,sorted,filter,setFilter,rarityFilter,setRarityF
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* ── Filter drawer ── */}
+      {filterOpen&&(<div className="battle-filter-backdrop" onClick={()=>setFilterOpen(false)}/>)}
+      <div className={`battle-filter-drawer${filterOpen?" open":""}`}>
+        {/* Drawer header */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 20px 16px",borderBottom:"1px solid #0f0f24",position:"sticky",top:0,background:"#08081a",zIndex:1}}>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:"14px",fontWeight:900,color:"#ffffff",letterSpacing:"1px"}}>FILTERS</div>
+          <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+            {activeFilters>0&&(
+              <button onClick={()=>{setPackFilter(0);setRarityFilter('All');setFilter('All');}} style={{background:"none",border:"none",color:"#4fc3f7",fontFamily:"'Rajdhani',sans-serif",fontSize:"14px",cursor:"pointer",padding:0,fontWeight:600}}>Clear all</button>
+            )}
+            <button onClick={()=>setFilterOpen(false)} style={{background:"none",border:"none",color:"#a0a8c0",fontSize:"20px",cursor:"pointer",lineHeight:1,padding:0}}>✕</button>
+          </div>
+        </div>
+
+        {/* PACK section */}
+        <div style={{borderBottom:"1px solid #0f0f24"}}>
+          <button onClick={()=>toggleSection('pack')} style={{width:"100%",background:"none",border:"none",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",color:"#c0c8e0",fontFamily:"'Orbitron',monospace",fontSize:"11px",letterSpacing:"1px"}}>
+            PACK <span style={{fontSize:"10px"}}>{openSections.pack?"▲":"▼"}</span>
+          </button>
+          {openSections.pack&&(
+            <div style={{paddingBottom:"8px"}}>
+              {[{id:0,label:"All",emoji:"📋",color:"#4fc3f7"},...Object.values(PACKS).map(p=>({id:p.id,label:p.name,emoji:p.emoji,color:p.color}))].map(p=>(
+                <button key={p.id} onClick={()=>setPackFilter(p.id)} style={{width:"100%",background:packFilter===p.id?`${p.color}18`:"none",border:"none",padding:"10px 20px",display:"flex",alignItems:"center",gap:"12px",cursor:"pointer",textAlign:"left",transition:"background 0.12s"}}>
+                  <div style={{width:"15px",height:"15px",borderRadius:"50%",border:`2px solid ${p.color}`,background:packFilter===p.id?p.color:"transparent",flexShrink:0,transition:"background 0.12s"}}/>
+                  <span style={{fontSize:"15px"}}>{p.emoji}</span>
+                  <span style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"15px",color:packFilter===p.id?p.color:"#c0c8e0",fontWeight:600}}>{p.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* RARITY section */}
+        <div style={{borderBottom:"1px solid #0f0f24"}}>
+          <button onClick={()=>toggleSection('rarity')} style={{width:"100%",background:"none",border:"none",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",color:"#c0c8e0",fontFamily:"'Orbitron',monospace",fontSize:"11px",letterSpacing:"1px"}}>
+            RARITY <span style={{fontSize:"10px"}}>{openSections.rarity?"▲":"▼"}</span>
+          </button>
+          {openSections.rarity&&(
+            <div style={{paddingBottom:"8px"}}>
+              {rarities.map(r=>{
+                const cfg=r==="All"?{color:"#4fc3f7"}:RC[r];
+                return(
+                  <button key={r} onClick={()=>setRarityFilter(r)} style={{width:"100%",background:rarityFilter===r?`${cfg.color}18`:"none",border:"none",padding:"10px 20px",display:"flex",alignItems:"center",gap:"12px",cursor:"pointer",textAlign:"left",transition:"background 0.12s"}}>
+                    <div style={{width:"15px",height:"15px",borderRadius:"50%",border:`2px solid ${cfg.color}`,background:rarityFilter===r?cfg.color:"transparent",flexShrink:0,transition:"background 0.12s"}}/>
+                    <span style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"15px",color:rarityFilter===r?cfg.color:"#c0c8e0",fontWeight:600}}>{r}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* TYPE section */}
+        <div>
+          <button onClick={()=>toggleSection('type')} style={{width:"100%",background:"none",border:"none",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",color:"#c0c8e0",fontFamily:"'Orbitron',monospace",fontSize:"11px",letterSpacing:"1px"}}>
+            TYPE <span style={{fontSize:"10px"}}>{openSections.type?"▲":"▼"}</span>
+          </button>
+          {openSections.type&&(
+            <div style={{paddingBottom:"8px"}}>
+              {types.map(t=>(
+                <button key={t} onClick={()=>setFilter(t)} style={{width:"100%",background:filter===t?"#4fc3f718":"none",border:"none",padding:"10px 20px",display:"flex",alignItems:"center",gap:"12px",cursor:"pointer",textAlign:"left",transition:"background 0.12s"}}>
+                  <div style={{width:"15px",height:"15px",borderRadius:"50%",border:`2px solid ${filter===t?"#4fc3f7":"rgba(255,255,255,0.3)"}`,background:filter===t?"#4fc3f7":"transparent",flexShrink:0,transition:"background 0.12s"}}/>
+                  <span style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"15px",color:filter===t?"#4fc3f7":"#c0c8e0",fontWeight:600}}>{t}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
