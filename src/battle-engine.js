@@ -610,7 +610,39 @@ function hasBattleCooldown(rarity){
   return rarity==='Legendary' || rarity==='Epic';
 }
 
-/* ── 18. ABILITY POOL (for random assignment in Session 4) ──────── */
+/* ── 18. AI STRATEGIC ACTIONS ───────────────────────────────────── */
+// Returns the best hand card for AI to swap to, or null if no swap warranted.
+// Swaps when active HP ≤ 35% and a better option exists in hand.
+
+function aiSwapTarget(aSide, pSide){
+  if(!aSide.active||aSide.hand.length===0||!pSide.active) return null;
+  const hpPct=aSide.active.hp/aSide.active.maxHp;
+  if(hpPct>0.35) return null;
+  // Prefer a card with type advantage vs opponent's active
+  const adv=aSide.hand.filter(c=>getTypeMultiplier(c.type,pSide.active.type)===1.5);
+  if(adv.length) return adv.reduce((b,c)=>c.hp>b.hp?c:b);
+  // At very low HP (≤20%), swap to healthiest card available
+  if(hpPct<=0.2){
+    const best=aSide.hand.reduce((b,c)=>c.hp>b.hp?c:b);
+    if(best.hp>aSide.active.hp) return best;
+  }
+  return null;
+}
+
+// Executes an AI proactive swap. Returns true if a swap occurred.
+function executeAIProactiveSwap(aSide,pSide,log){
+  const target=aiSwapTarget(aSide,pSide);
+  if(!target) return false;
+  const prev=aSide.active;
+  aSide.hand=aSide.hand.filter(c=>c.id!==target.id);
+  aSide.hand.push(prev);
+  aSide.active=target;
+  applyEntryEffects(target,aSide,pSide,log);
+  log.push({type:'AI_SWAP',card:target.name,prev:prev.name});
+  return true;
+}
+
+/* ── 19. ABILITY POOL (for random assignment in Session 4) ──────── */
 
 const ABILITY_POOL = {
   Common:    ['Grit','Opportunist','Resilience','Shield Up','Tenacity'],

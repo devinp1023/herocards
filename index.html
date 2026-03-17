@@ -2660,7 +2660,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
         document.body
       )}
 
-      {!isBattling&&<HamburgerNav tab={tab} setTab={setTabPersist} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>}
+      <HamburgerNav tab={tab} setTab={setTabPersist} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>
       {openingPack&&<PackAnim cards={openingPack} onDone={onPackDone} packId={selectedPack} collection={collection} onTradeDupes={onTradeDupes}/>}
     </div>
   );
@@ -3358,7 +3358,39 @@ function hasBattleCooldown(rarity){
   return rarity==='Legendary' || rarity==='Epic';
 }
 
-/* ── 18. ABILITY POOL (for random assignment in Session 4) ──────── */
+/* ── 18. AI STRATEGIC ACTIONS ───────────────────────────────────── */
+// Returns the best hand card for AI to swap to, or null if no swap warranted.
+// Swaps when active HP ≤ 35% and a better option exists in hand.
+
+function aiSwapTarget(aSide, pSide){
+  if(!aSide.active||aSide.hand.length===0||!pSide.active) return null;
+  const hpPct=aSide.active.hp/aSide.active.maxHp;
+  if(hpPct>0.35) return null;
+  // Prefer a card with type advantage vs opponent's active
+  const adv=aSide.hand.filter(c=>getTypeMultiplier(c.type,pSide.active.type)===1.5);
+  if(adv.length) return adv.reduce((b,c)=>c.hp>b.hp?c:b);
+  // At very low HP (≤20%), swap to healthiest card available
+  if(hpPct<=0.2){
+    const best=aSide.hand.reduce((b,c)=>c.hp>b.hp?c:b);
+    if(best.hp>aSide.active.hp) return best;
+  }
+  return null;
+}
+
+// Executes an AI proactive swap. Returns true if a swap occurred.
+function executeAIProactiveSwap(aSide,pSide,log){
+  const target=aiSwapTarget(aSide,pSide);
+  if(!target) return false;
+  const prev=aSide.active;
+  aSide.hand=aSide.hand.filter(c=>c.id!==target.id);
+  aSide.hand.push(prev);
+  aSide.active=target;
+  applyEntryEffects(target,aSide,pSide,log);
+  log.push({type:'AI_SWAP',card:target.name,prev:prev.name});
+  return true;
+}
+
+/* ── 19. ABILITY POOL (for random assignment in Session 4) ──────── */
 
 const ABILITY_POOL = {
   Common:    ['Grit','Opportunist','Resilience','Shield Up','Tenacity'],
@@ -3430,15 +3462,40 @@ function getNextMidnight(){
 }
 
 /* ── HpBar ── */
-function HpBar({hp,maxHp,color="#4fc3f7"}){
+function HpBar({hp,maxHp}){
   const pct=Math.max(0,Math.min(100,(hp/maxHp)*100));
-  const barColor=pct>50?color:pct>25?"#ff9800":"#ef5350";
+  const barColor=pct>60?"#4caf50":pct>33?"#ffeb3b":"#ef5350";
   return(
     <div style={{width:"100%"}}>
-      <div style={{background:"#0a0a20",borderRadius:"4px",height:"7px",overflow:"hidden",marginBottom:"3px"}}>
-        <div style={{width:`${pct}%`,height:"100%",background:barColor,borderRadius:"4px",transition:"width 0.4s ease"}}/>
+      <div style={{background:"#0a0a20",borderRadius:"4px",height:"7px",overflow:"hidden"}}>
+        <div style={{width:`${pct}%`,height:"100%",background:barColor,borderRadius:"4px",transition:"width 0.4s ease,background 0.3s ease"}}/>
       </div>
-      <div style={{fontFamily:"'Orbitron',monospace",fontSize:"13px",fontWeight:700,color:"#ffffff",textAlign:"center"}}>{hp}/{maxHp} HP</div>
+    </div>
+  );
+}
+
+/* ── CircularHpBar ── */
+function CircularHpBar({hp,maxHp,size=64}){
+  const pct=Math.max(0,Math.min(1,hp/maxHp));
+  const strokeW=5;
+  const r=(size-strokeW*2)/2;
+  const circ=2*Math.PI*r;
+  const offset=circ*(1-pct);
+  const color=pct>0.6?"#4caf50":pct>0.33?"#ffeb3b":"#ef5350";
+  return(
+    <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
+      <svg width={size} height={size} style={{transform:"rotate(-90deg)",display:"block"}}>
+        {/* Track */}
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1a1a3a" strokeWidth={strokeW}/>
+        {/* Progress arc */}
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={strokeW}
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          style={{transition:"stroke-dashoffset 0.4s ease,stroke 0.3s ease"}}/>
+      </svg>
+      <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"12px",fontWeight:900,color:"#fff",lineHeight:1}}>{hp}</div>
+        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"7px",fontWeight:700,color:"#a0aac0",marginTop:"2px"}}>HP</div>
+      </div>
     </div>
   );
 }
@@ -3480,11 +3537,30 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
   const aRef=useRef(null);
   const logRef=useRef([]);
   const [phase,setPhase]=useState('init');
-  // 'init' | 'ready' | 'attacking' | 'ai_replacing' | 'selecting' | 'done'
+  // 'init'|'ready'|'attacking'|'free_ai_attack'|'ai_replacing'|'selecting'|'done'
   const [tick,setTick]=useState(0);
   const [roundNum,setRoundNum]=useState(1);
   const [typeRevealed,setTypeRevealed]=useState(false);
   const refresh=()=>setTick(t=>t+1);
+
+  // ── Responsive active-card sizing ───────────────────────────────
+  // ResizeObserver watches the combat zone and computes the largest card
+  // width that lets both active cards + all labels/bars/VS fit without scroll.
+  // ResizeObserver sits on the AI card container (flex:1 within its section).
+  // That element's height IS the available card height — no overhead math needed.
+  const cardContainerRef=useRef(null);
+  const [cardW,setCardW]=useState(190);
+  useEffect(()=>{
+    if(!cardContainerRef.current) return;
+    const compute=(h)=>{
+      const w=Math.round(h*(201/290));
+      setCardW(Math.min(190,Math.max(90,w)));
+    };
+    compute(cardContainerRef.current.getBoundingClientRect().height);
+    const obs=new ResizeObserver(e=>compute(e[0].contentRect.height));
+    obs.observe(cardContainerRef.current);
+    return ()=>obs.disconnect();
+  },[]);
 
   useEffect(()=>{
     const p=initSideState(playerDeck);
@@ -3543,8 +3619,11 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
   const handleAttack=()=>{
     if(phase!=='ready') return;
     const p=pRef.current; const a=aRef.current; const log=logRef.current;
-    if(p.hand.length<5) drawCard(p);
-    if(a.hand.length<5) drawCard(a);
+    // AI auto-draws; player draws explicitly via + button
+    if(a.hand.length<5&&a.deck.length>0) drawCard(a);
+    // AI may proactively swap to a better card before the round
+    executeAIProactiveSwap(a,p,log);
+    setTypeRevealed(false);
     log.push({type:'ROUND_START',round:roundNum,playerHp:p.active.hp,playerMaxHp:p.active.maxHp,aiHp:a.active.hp,aiMaxHp:a.active.maxHp});
     const pSpd=effSpeed(p.active); const aSpd=effSpeed(a.active);
     const playerFirst=pSpd>=aSpd;
@@ -3599,6 +3678,55 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
     setRoundNum(n=>n+1); setPhase('ready'); refresh();
   };
 
+  const runFreeAiAttack=()=>{
+    setPhase('free_ai_attack');
+    setTimeout(()=>{
+      const p=pRef.current; const a=aRef.current; const log=logRef.current;
+      executeAIProactiveSwap(a,p,log);
+      const r=executeAttack(a.active,p.active,a,p,log);
+      const pKilled=r.killed||p.active.hp<=0;
+      setTypeRevealed(true); refresh();
+      setTimeout(()=>{
+        if(pKilled){
+          resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
+          p.active=null; refresh();
+          if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
+          if(p.hand.length===0&&p.deck.length>0) drawCard(p);
+          resolvePostRound(p,a,log); setRoundNum(n=>n+1); refresh();
+          setPhase('selecting');
+        } else {
+          finishRound();
+        }
+      },700);
+    },800);
+  };
+
+  const handleDraw=()=>{
+    if(phase!=='ready') return;
+    const p=pRef.current; const a=aRef.current; const log=logRef.current;
+    if(p.hand.length>=5||p.deck.length===0) return;
+    if(a.hand.length<5&&a.deck.length>0) drawCard(a);
+    drawCard(p);
+    log.push({type:'PLAYER_DRAW',card:p.hand[p.hand.length-1].name});
+    setTypeRevealed(false); refresh();
+    runFreeAiAttack();
+  };
+
+  const handleSwap=(card)=>{
+    if(phase!=='ready') return;
+    const p=pRef.current; const a=aRef.current; const log=logRef.current;
+    if(!p.active) return;
+    if(a.hand.length<5&&a.deck.length>0) drawCard(a);
+    const prev=p.active;
+    p.hand=p.hand.filter(c=>c.id!==card.id);
+    p.hand.push(prev);
+    p.active=card;
+    applyEntryEffects(card,p,a,log);
+    log.push({type:'PLAYER_SWAP',card:card.name,prev:prev.name});
+    setTypeRevealed(false); refresh();
+    runFreeAiAttack();
+  };
+
   const p=pRef.current; const a=aRef.current;
   if(!p||!a||phase==='init'){
     return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",background:"#060610"}}><Spinner size={40} color="#4fc3f7"/></div>);
@@ -3615,10 +3743,19 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
       <div style={{flexShrink:0,padding:"10px 16px 20px",background:"#080818",borderBottom:"1px solid #0f0f24"}}>
         <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
           <span style={{fontSize:"24px"}}>{tierInfo.avatar}</span>
-          <div>
+          <div style={{flex:1}}>
             <div style={{fontFamily:"'Orbitron',monospace",fontSize:"15px",fontWeight:900,color:tierInfo.color,letterSpacing:"1px"}}>{tierInfo.emoji} {tierInfo.name.toUpperCase()}</div>
             <div style={{fontFamily:"'Orbitron',monospace",fontSize:"13px",fontWeight:700,color:"#c0c8e0",letterSpacing:"1px"}}>ROUND {roundNum}</div>
           </div>
+          {/* Forfeit — only during live battle */}
+          {phase!=='init'&&phase!=='done'&&(
+            <button onClick={()=>endBattle('ai')}
+              style={{fontFamily:"'Orbitron',monospace",fontSize:"10px",fontWeight:700,
+                color:"#ef5350",background:"rgba(239,83,80,0.08)",border:"1px solid rgba(239,83,80,0.35)",
+                borderRadius:"8px",padding:"5px 10px",cursor:"pointer",letterSpacing:"1px",flexShrink:0}}>
+              FORFEIT
+            </button>
+          )}
         </div>
         {/* Hand (centered, scrollable) + deck pushed to far right */}
         <div style={{display:"flex",alignItems:"flex-end",gap:"10px"}}>
@@ -3639,42 +3776,49 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
       </div>
 
       {/* ── Combat zone ── */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"10px 16px",gap:"6px",minHeight:0}}>
+      {/* flex:1 outer; AI section + VS + player section each flex:1 so CSS
+          handles the allocation. HP bars live outside card containers so they
+          are never clipped. ResizeObserver on the AI card container derives
+          cardW from its actual flex-allocated height — no OVERHEAD constant. */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden",padding:"8px 16px 4px",gap:"4px",boxSizing:"border-box"}}>
 
-        {/* AI active */}
-        <div style={{display:"flex",justifyContent:"center"}}>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"4px"}}>
-            <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",fontWeight:700,color:"#a0aac0",letterSpacing:"2px"}}>OPPONENT</div>
+        {/* ── AI section ── */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",minHeight:0}}>
+          {/* Card container — position:relative so CircularHpBar can escape without being clipped */}
+          <div ref={cardContainerRef} style={{flex:1,minHeight:0,position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
             {a.active?(
-              <>
-                <div style={{width:"190px","--sidebar-w":"calc(100vw - 190px)","--card-col":"1"}}>
-                  <CardWrapper rarity={a.active.rarity}><HeroCard card={a.active} size="normal" fill/></CardWrapper>
-                </div>
-                <HpBar hp={a.active.hp} maxHp={a.active.maxHp} color="#ef5350"/>
-                {mult!==null&&<div style={{fontFamily:"monospace",fontSize:"10px",letterSpacing:"0.5px",color:mult===1.5?"#ef5350":mult===0.75?"#4caf50":"#404060"}}>{mult===1.5?"▲ STRONG vs you":mult===0.75?"▼ WEAK vs you":"— NEUTRAL"}</div>}
-              </>
+              <div style={{width:`${cardW}px`,"--sidebar-w":`calc(100vw - ${cardW}px)`,"--card-col":"1"}}>
+                <CardWrapper rarity={a.active.rarity}><HeroCard card={a.active} size="normal" fill/></CardWrapper>
+              </div>
             ):(
-              <div style={{width:"190px",height:"274px",border:"2px dashed #ef535033",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>DEFEATED</div>
+              <div style={{width:`${cardW}px`,height:`${Math.round(cardW*290/201)}px`,border:"2px dashed #ef535033",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>DEFEATED</div>
             )}
+            {/* Circular HP — left of card, absolutely positioned so it never affects layout */}
+            {a.active&&(
+              <div style={{position:"absolute",top:"50%",left:`calc(50% - ${cardW/2}px)`,transform:"translate(calc(-100% - 14px), -50%)"}}>
+                <CircularHpBar hp={a.active.hp} maxHp={a.active.maxHp}/>
+              </div>
+            )}
+          </div>
+          {/* Type indicator — fixed height so layout is stable */}
+          <div style={{height:"16px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            {mult!==null&&<div style={{fontFamily:"monospace",fontSize:"10px",letterSpacing:"0.5px",color:mult===1.5?"#ef5350":mult===0.75?"#4caf50":"#404060"}}>{mult===1.5?"▲ STRONG vs you":mult===0.75?"▼ WEAK vs you":"— NEUTRAL"}</div>}
           </div>
         </div>
 
-        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"22px",fontWeight:900,color:"#4fc3f7",userSelect:"none",textShadow:"0 0 12px #4fc3f788",letterSpacing:"4px"}}>— VS —</div>
+        {/* ── VS ── */}
+        <div style={{fontFamily:"'Orbitron',monospace",fontSize:"20px",fontWeight:900,color:"#4fc3f7",userSelect:"none",textShadow:"0 0 12px #4fc3f788",letterSpacing:"4px",textAlign:"center",flexShrink:0}}>— VS —</div>
 
-        {/* Player active */}
-        <div style={{display:"flex",justifyContent:"center"}}>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"4px"}}>
-            <div style={{fontFamily:"'Orbitron',monospace",fontSize:"11px",fontWeight:700,color:"#4fc3f7",letterSpacing:"2px"}}>YOU</div>
+        {/* ── Player section ── */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",minHeight:0}}>
+          {/* Card container — position:relative so circles/buttons can escape without clipping */}
+          <div style={{flex:1,minHeight:0,position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
             {p.active?(
               <div style={{position:"relative"}}>
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"4px"}}>
-                  <div style={{width:"190px","--sidebar-w":"calc(100vw - 190px)","--card-col":"1"}}>
-                    <CardWrapper rarity={p.active.rarity}><HeroCard card={p.active} size="normal" fill/></CardWrapper>
-                  </div>
-                  <HpBar hp={p.active.hp} maxHp={p.active.maxHp} color="#4fc3f7"/>
-                  {mult!==null&&<div style={{fontFamily:"monospace",fontSize:"10px",letterSpacing:"0.5px",color:mult===1.5?"#4caf50":mult===0.75?"#ef5350":"#404060"}}>{mult===1.5?"▲ STRONG vs them":mult===0.75?"▼ WEAK vs them":"— NEUTRAL"}</div>}
+                <div style={{width:`${cardW}px`,"--sidebar-w":`calc(100vw - ${cardW}px)`,"--card-col":"1"}}>
+                  <CardWrapper rarity={p.active.rarity}><HeroCard card={p.active} size="normal" fill/></CardWrapper>
                 </div>
-                {/* ── Circular attack button — absolutely right of card ── */}
+                {/* Attack button — right of card */}
                 <div style={{position:"absolute",top:"50%",left:"100%",transform:"translateY(-50%)",marginLeft:"14px",width:"64px",height:"64px",display:"flex",alignItems:"center",justifyContent:"center"}}>
                   {canAttack&&<div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2px solid #ef5350",animation:"attackRing 1.2s ease-out infinite",pointerEvents:"none"}}/>}
                   {canAttack&&<div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2px solid #ef5350",animation:"attackRing 1.2s ease-out 0.4s infinite",pointerEvents:"none"}}/>}
@@ -3691,29 +3835,65 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
                 </div>
               </div>
             ):(
-              <div style={{width:"190px",height:"274px",border:"2px dashed #4fc3f733",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>SELECT →</div>
+              <div style={{width:`${cardW}px`,height:`${Math.round(cardW*290/201)}px`,border:"2px dashed #4fc3f733",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>SELECT →</div>
+            )}
+            {/* Circular HP — left of card */}
+            {p.active&&(
+              <div style={{position:"absolute",top:"50%",left:`calc(50% - ${cardW/2}px)`,transform:"translate(calc(-100% - 14px), -50%)"}}>
+                <CircularHpBar hp={p.active.hp} maxHp={p.active.maxHp}/>
+              </div>
             )}
           </div>
+          <div style={{height:"16px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            {mult!==null&&<div style={{fontFamily:"monospace",fontSize:"10px",letterSpacing:"0.5px",color:mult===1.5?"#4caf50":mult===0.75?"#ef5350":"#404060"}}>{mult===1.5?"▲ STRONG vs them":mult===0.75?"▼ WEAK vs them":"— NEUTRAL"}</div>}
+          </div>
         </div>
+
       </div>
 
       {/* ── Player hand ── */}
       <div style={{flexShrink:0,background:"#080818",borderTop:"1px solid #0f0f24",padding:"8px 12px 10px"}}>
         <div style={{display:"flex",alignItems:"flex-end",gap:"10px"}}>
           {/* Hand — centered, scrollable */}
-          <div style={{flex:1,display:"flex",gap:"8px",overflowX:"auto",paddingBottom:"2px",justifyContent:"center"}}>
+          <div style={{flex:1,display:"flex",gap:"8px",overflowX:"auto",paddingBottom:"2px",justifyContent:"center",alignItems:"flex-end"}}>
             {p.hand.map(card=>(
-              <div key={card.id} onClick={needSelect?()=>handleSelectCard(card):undefined}
-                style={{width:"100px",flexShrink:0,cursor:needSelect?"pointer":"default",borderRadius:"9px",
-                  outline:needSelect?"2px solid #4fc3f7":"none",outlineOffset:"2px",
-                  opacity:needSelect?1:0.55,transition:"opacity 0.2s,outline 0.2s",
-                  "--sidebar-w":"calc(100vw - 100px)","--card-col":"1"}}>
-                <CardWrapper rarity={card.rarity}><HeroCard card={card} size="normal" fill/></CardWrapper>
+              <div key={card.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",flexShrink:0}}>
+                <div onClick={needSelect?()=>handleSelectCard(card):undefined}
+                  style={{width:"100px",cursor:needSelect?"pointer":"default",borderRadius:"9px",
+                    outline:needSelect?"2px solid #4fc3f7":"none",outlineOffset:"2px",
+                    opacity:needSelect?1:(phase==='ready'?1:0.6),transition:"opacity 0.2s,outline 0.2s",
+                    "--sidebar-w":"calc(100vw - 100px)","--card-col":"1"}}>
+                  <CardWrapper rarity={card.rarity}><HeroCard card={card} size="normal" fill/></CardWrapper>
+                </div>
+                <HpBar hp={card.hp} maxHp={card.maxHp} color="#4fc3f7"/>
+                {phase==='ready'?(
+                  <button onClick={()=>handleSwap(card)}
+                    style={{width:"100px",padding:"3px 0",fontFamily:"'Orbitron',monospace",fontSize:"9px",fontWeight:700,
+                      color:"#4fc3f7",background:"rgba(79,195,247,0.1)",border:"1px solid rgba(79,195,247,0.35)",
+                      borderRadius:"6px",cursor:"pointer",letterSpacing:"1px"}}>
+                    ↕ SWAP IN
+                  </button>
+                ):<div style={{height:"24px"}}/>}
               </div>
             ))}
             {Array.from({length:Math.max(0,5-p.hand.length)}).map((_,i)=>(
-              <div key={`empty-${i}`} style={{width:"100px",flexShrink:0,aspectRatio:"201/290",borderRadius:"9px",
-                border:"2px dashed rgba(79,195,247,0.45)",background:"rgba(79,195,247,0.04)"}}/>
+              <div key={`empty-${i}`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",flexShrink:0}}>
+                <div style={{width:"100px",aspectRatio:"201/290",borderRadius:"9px",
+                  border:"2px dashed rgba(79,195,247,0.45)",background:"rgba(79,195,247,0.04)",
+                  display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {phase==='ready'&&p.deck.length>0&&(
+                    <button onClick={handleDraw}
+                      style={{width:"38px",height:"38px",borderRadius:"50%",
+                        background:"rgba(79,195,247,0.12)",border:"1px solid rgba(79,195,247,0.45)",
+                        color:"#4fc3f7",fontSize:"22px",lineHeight:1,cursor:"pointer",
+                        display:"flex",alignItems:"center",justifyContent:"center",fontWeight:300}}>
+                      +
+                    </button>
+                  )}
+                </div>
+                <div style={{height:"7px"}}/>
+                <div style={{height:"24px"}}/>
+              </div>
             ))}
           </div>
           {/* Deck — single card image on right */}
@@ -3727,7 +3907,7 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
       </div>
 
       {/* ── Status bar ── */}
-      {(needSelect||phase==='ai_replacing'||phase==='attacking')&&(
+      {(needSelect||phase==='ai_replacing'||phase==='attacking'||phase==='free_ai_attack')&&(
         <div style={{flexShrink:0,padding:"10px 16px 12px",background:"#08081a",borderTop:"1px solid #12122a"}}>
           {needSelect?(
             <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"13px",color:"#4fc3f7",letterSpacing:"1px",padding:"4px 0"}}>
@@ -3736,6 +3916,10 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
           ):phase==='ai_replacing'?(
             <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"12px",color:"#505878",letterSpacing:"1px",padding:"4px 0"}}>
               {tierInfo.avatar} Choosing next card...
+            </div>
+          ):phase==='free_ai_attack'?(
+            <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"12px",color:"#ef5350",letterSpacing:"1px",padding:"4px 0"}}>
+              ⚡ {tierInfo.avatar} Free attack incoming...
             </div>
           ):(
             <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"12px",color:"#505878",letterSpacing:"1px",padding:"4px 0"}}>
