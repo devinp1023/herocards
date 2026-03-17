@@ -37,6 +37,10 @@ body{background:#060610;font-family:'Rajdhani',sans-serif;color:#d0d4e8}
 @keyframes particleBurst{0%{transform:scale(0) rotate(0deg);opacity:1}100%{transform:scale(3) rotate(360deg);opacity:0}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes attackGlow{0%,100%{box-shadow:0 0 10px rgba(239,83,80,0.25)}50%{box-shadow:0 0 28px rgba(239,83,80,0.9),0 0 52px rgba(239,83,80,0.3)}}
+@keyframes lungeUp{0%{transform:translateY(0)}40%{transform:translateY(-48px)}65%{transform:translateY(-48px)}100%{transform:translateY(0)}}
+@keyframes lungeDown{0%{transform:translateY(0)}40%{transform:translateY(48px)}65%{transform:translateY(48px)}100%{transform:translateY(0)}}
+@keyframes cardShake{0%,100%{transform:translateX(0)}18%{transform:translateX(-10px)}36%{transform:translateX(10px)}54%{transform:translateX(-7px)}72%{transform:translateX(7px)}90%{transform:translateX(-3px)}}
+.lunge-up{animation:lungeUp 0.95s ease-in-out}.lunge-down{animation:lungeDown 0.95s ease-in-out}.card-hit{animation:cardShake 0.75s ease-in-out}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:#060610}
 ::-webkit-scrollbar-thumb{background:#1a1a3a;border-radius:2px}

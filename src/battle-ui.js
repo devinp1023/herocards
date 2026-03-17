@@ -127,6 +127,8 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
   const [tick,setTick]=useState(0);
   const [roundNum,setRoundNum]=useState(1);
   const [typeRevealed,setTypeRevealed]=useState(false);
+  const [attackAnim,setAttackAnim]=useState(null); // 'player'|'ai'|null — who is lunging
+  const [hitAnim,setHitAnim]=useState(null);       // 'player'|'ai'|null — who is shaking/flashing
   const refresh=()=>setTick(t=>t+1);
 
   // ── Responsive active-card sizing ───────────────────────────────
@@ -205,9 +207,7 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
   const handleAttack=()=>{
     if(phase!=='ready') return;
     const p=pRef.current; const a=aRef.current; const log=logRef.current;
-    // AI auto-draws; player draws explicitly via + button
     if(a.hand.length<5&&a.deck.length>0) drawCard(a);
-    // AI may proactively swap to a better card before the round
     executeAIProactiveSwap(a,p,log);
     setTypeRevealed(false);
     log.push({type:'ROUND_START',round:roundNum,playerHp:p.active.hp,playerMaxHp:p.active.maxHp,aiHp:a.active.hp,aiMaxHp:a.active.maxHp});
@@ -215,42 +215,79 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
     const playerFirst=pSpd>=aSpd;
     setPhase('attacking');
     let pKilled=false; let aKilled=false;
-    if(playerFirst){
-      const r1=executeAttack(p.active,a.active,p,a,log);
-      aKilled=r1.killed||a.active.hp<=0; pKilled=p.active.hp<=0;
-      if(!aKilled&&!pKilled){ const r2=executeAttack(a.active,p.active,a,p,log); pKilled=r2.killed||p.active.hp<=0; aKilled=aKilled||a.active.hp<=0; }
-    } else {
-      const r1=executeAttack(a.active,p.active,a,p,log);
-      pKilled=r1.killed||p.active.hp<=0; aKilled=a.active.hp<=0;
-      if(!pKilled&&!aKilled){ const r2=executeAttack(p.active,a.active,p,a,log); aKilled=r2.killed||a.active.hp<=0; pKilled=pKilled||p.active.hp<=0; }
-    }
-    setTypeRevealed(true); refresh();
-    setTimeout(()=>{
-      if(!aKilled&&!pKilled){ finishRound(); return; }
-      if(aKilled&&pKilled){
-        resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
+
+    const doResolve=()=>{
+      setTimeout(()=>{
+        if(!aKilled&&!pKilled){ finishRound(); return; }
+        if(aKilled&&pKilled){
+          resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
+          resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
+          a.active=null; p.active=null;
+          if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
+          if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
+          if(a.hand.length===0&&a.deck.length>0) drawCard(a);
+          const next=aiSelectCard(a.hand,'Brawler');
+          if(next){ a.hand=a.hand.filter(c=>c.id!==next.id); a.active=next; applyEntryEffects(next,a,p,log); }
+          if(p.hand.length===0&&p.deck.length>0) drawCard(p);
+          setPhase('selecting'); refresh(); return;
+        }
+        if(aKilled){
+          resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
+          a.active=null; refresh();
+          if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
+          aiReplace(); return;
+        }
         resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
-        a.active=null; p.active=null;
-        if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
+        p.active=null; refresh();
         if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
-        if(a.hand.length===0&&a.deck.length>0) drawCard(a);
-        const next=aiSelectCard(a.hand,'Brawler');
-        if(next){ a.hand=a.hand.filter(c=>c.id!==next.id); a.active=next; applyEntryEffects(next,a,p,log); }
         if(p.hand.length===0&&p.deck.length>0) drawCard(p);
-        setPhase('selecting'); refresh(); return;
+        setPhase('selecting'); refresh();
+      },300);
+    };
+
+    // ── Timing constants ──────────────────────────────────────────────
+    const PEAK=480;   // ms from lunge start to impact
+    const END=950;    // ms for full lunge + return (matches 0.95s CSS)
+    const GAP=500;    // ms pause between the two attacks
+
+    // ── First attack: lunge toward opponent ──────────────────────────
+    setAttackAnim(playerFirst?'player':'ai');
+    setTimeout(()=>{
+      // Peak of lunge — impact fires
+      setHitAnim(playerFirst?'ai':'player');
+      if(playerFirst){
+        const r=executeAttack(p.active,a.active,p,a,log);
+        aKilled=r.killed||a.active.hp<=0; pKilled=p.active.hp<=0;
+      } else {
+        const r=executeAttack(a.active,p.active,a,p,log);
+        pKilled=r.killed||p.active.hp<=0; aKilled=a.active.hp<=0;
       }
-      if(aKilled){
-        resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
-        a.active=null; refresh();
-        if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
-        aiReplace(); return;
+      setTypeRevealed(true); refresh();
+    },PEAK);
+
+    setTimeout(()=>{
+      setAttackAnim(null); setHitAnim(null);
+      if(!aKilled&&!pKilled){
+        // ── Gap then second attack ─────────────────────────────────────
+        setTimeout(()=>{
+          setAttackAnim(playerFirst?'ai':'player');
+          setTimeout(()=>{
+            setHitAnim(playerFirst?'player':'ai');
+            if(playerFirst){
+              const r=executeAttack(a.active,p.active,a,p,log);
+              pKilled=r.killed||p.active.hp<=0; aKilled=aKilled||a.active.hp<=0;
+            } else {
+              const r=executeAttack(p.active,a.active,p,a,log);
+              aKilled=r.killed||a.active.hp<=0; pKilled=pKilled||p.active.hp<=0;
+            }
+            refresh();
+          },PEAK);
+          setTimeout(()=>{ setAttackAnim(null); setHitAnim(null); doResolve(); },END);
+        },GAP);
+      } else {
+        doResolve();
       }
-      resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
-      p.active=null; refresh();
-      if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
-      if(p.hand.length===0&&p.deck.length>0) drawCard(p);
-      setPhase('selecting'); refresh();
-    },700);
+    },END);
   };
 
   const handleSelectCard=(card)=>{
@@ -266,13 +303,20 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
 
   const runFreeAiAttack=()=>{
     setPhase('free_ai_attack');
+    let pKilled=false;
+    setAttackAnim('ai');
     setTimeout(()=>{
       const p=pRef.current; const a=aRef.current; const log=logRef.current;
       executeAIProactiveSwap(a,p,log);
+      setHitAnim('player');
       const r=executeAttack(a.active,p.active,a,p,log);
-      const pKilled=r.killed||p.active.hp<=0;
+      pKilled=r.killed||p.active.hp<=0;
       setTypeRevealed(true); refresh();
+    },480);
+    setTimeout(()=>{
+      setAttackAnim(null); setHitAnim(null);
       setTimeout(()=>{
+        const p=pRef.current; const a=aRef.current; const log=logRef.current;
         if(pKilled){
           resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
           p.active=null; refresh();
@@ -283,8 +327,8 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
         } else {
           finishRound();
         }
-      },700);
-    },800);
+      },300);
+    },950);
   };
 
   const handleDraw=()=>{
@@ -373,8 +417,12 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
           {/* Card container — position:relative so CircularHpBar can escape without being clipped */}
           <div ref={cardContainerRef} style={{flex:1,minHeight:0,position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
             {a.active?(
-              <div style={{width:`${cardW}px`,"--sidebar-w":`calc(100vw - ${cardW}px)`,"--card-col":"1"}}>
-                <CardWrapper rarity={a.active.rarity}><HeroCard card={a.active} size="normal" fill/></CardWrapper>
+              <div style={{width:`${cardW}px`,height:`${Math.round(cardW*290/201)}px`,position:"relative","--sidebar-w":`calc(100vw - ${cardW}px)`,"--card-col":"1"}}>
+                <div className={attackAnim==='ai'?'lunge-down':hitAnim==='ai'?'card-hit':''}
+                  style={{position:"absolute",inset:0}}>
+                  <CardWrapper rarity={a.active.rarity}><HeroCard card={a.active} size="normal" fill/></CardWrapper>
+                  {hitAnim==='ai'&&<div style={{position:"absolute",inset:0,borderRadius:"13px",background:"rgba(239,83,80,0.38)",pointerEvents:"none"}}/>}
+                </div>
               </div>
             ):(
               <div style={{width:`${cardW}px`,height:`${Math.round(cardW*290/201)}px`,border:"2px dashed #ef535033",borderRadius:"13px",display:"flex",alignItems:"center",justifyContent:"center",color:"#303050",fontFamily:"monospace",fontSize:"11px"}}>DEFEATED</div>
@@ -401,8 +449,12 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
           <div style={{flex:1,minHeight:0,position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
             {p.active?(
               <div style={{position:"relative"}}>
-                <div style={{width:`${cardW}px`,"--sidebar-w":`calc(100vw - ${cardW}px)`,"--card-col":"1"}}>
-                  <CardWrapper rarity={p.active.rarity}><HeroCard card={p.active} size="normal" fill/></CardWrapper>
+                <div style={{width:`${cardW}px`,height:`${Math.round(cardW*290/201)}px`,position:"relative","--sidebar-w":`calc(100vw - ${cardW}px)`,"--card-col":"1"}}>
+                  <div className={attackAnim==='player'?'lunge-up':hitAnim==='player'?'card-hit':''}
+                    style={{position:"absolute",inset:0}}>
+                    <CardWrapper rarity={p.active.rarity}><HeroCard card={p.active} size="normal" fill/></CardWrapper>
+                    {hitAnim==='player'&&<div style={{position:"absolute",inset:0,borderRadius:"13px",background:"rgba(239,83,80,0.38)",pointerEvents:"none"}}/>}
+                  </div>
                 </div>
                 {/* Attack button — right of card */}
                 <div style={{position:"absolute",top:"50%",left:"100%",transform:"translateY(-50%)",marginLeft:"14px",width:"64px",height:"64px",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -493,26 +545,9 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
         </div>
       </div>
 
-      {/* ── Status bar ── */}
-      {(needSelect||phase==='ai_replacing'||phase==='attacking'||phase==='free_ai_attack')&&(
-        <div style={{flexShrink:0,padding:"10px 16px 12px",background:"#08081a",borderTop:"1px solid #12122a"}}>
-          {needSelect?(
-            <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"13px",color:"#4fc3f7",letterSpacing:"1px",padding:"4px 0"}}>
-              👆 Tap a card from your hand to play
-            </div>
-          ):phase==='ai_replacing'?(
-            <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"12px",color:"#505878",letterSpacing:"1px",padding:"4px 0"}}>
-              {tierInfo.avatar} Choosing next card...
-            </div>
-          ):phase==='free_ai_attack'?(
-            <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"12px",color:"#ef5350",letterSpacing:"1px",padding:"4px 0"}}>
-              ⚡ {tierInfo.avatar} Free attack incoming...
-            </div>
-          ):(
-            <div style={{textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"12px",color:"#505878",letterSpacing:"1px",padding:"4px 0"}}>
-              ⚔️ Resolving...
-            </div>
-          )}
+      {needSelect&&(
+        <div style={{flexShrink:0,padding:"10px 16px 12px",background:"#08081a",borderTop:"1px solid #12122a",textAlign:"center",fontFamily:"'Orbitron',monospace",fontSize:"13px",color:"#4fc3f7",letterSpacing:"1px"}}>
+          👆 Tap a card from your hand to play
         </div>
       )}
     </div>
