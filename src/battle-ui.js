@@ -406,15 +406,14 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
                 </div>
                 {/* Attack button — right of card */}
                 <div style={{position:"absolute",top:"50%",left:"100%",transform:"translateY(-50%)",marginLeft:"14px",width:"64px",height:"64px",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  {canAttack&&<div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2px solid #ef5350",animation:"attackRing 1.2s ease-out infinite",pointerEvents:"none"}}/>}
-                  {canAttack&&<div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2px solid #ef5350",animation:"attackRing 1.2s ease-out 0.4s infinite",pointerEvents:"none"}}/>}
                   <button onClick={canAttack?handleAttack:undefined} disabled={!canAttack}
                     style={{width:"64px",height:"64px",borderRadius:"50%",
                       background:canAttack?"linear-gradient(135deg,#ef5350,#ff7043)":"#0d0d20",
                       border:canAttack?"2px solid #ff7043":"2px solid #1a1a3a",
                       fontSize:"26px",cursor:canAttack?"pointer":"not-allowed",
-                      boxShadow:canAttack?"0 0 24px #ef535077":"none",
-                      transition:"all 0.2s",display:"flex",alignItems:"center",justifyContent:"center",
+                      animation:canAttack?"attackGlow 2s ease-in-out infinite":"none",
+                      transition:"background 0.2s,border 0.2s,opacity 0.2s",
+                      display:"flex",alignItems:"center",justifyContent:"center",
                       opacity:canAttack?1:0.3}}>
                     ⚔️
                   </button>
@@ -477,8 +476,10 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
                     </button>
                   )}
                 </div>
-                <div style={{height:"7px"}}/>
-                <div style={{height:"24px"}}/>
+                <div style={{visibility:"hidden"}}><HpBar hp={0} maxHp={1}/></div>
+                <button style={{width:"100px",padding:"3px 0",fontFamily:"'Orbitron',monospace",fontSize:"9px",fontWeight:700,
+                  color:"#4fc3f7",background:"rgba(79,195,247,0.1)",border:"1px solid rgba(79,195,247,0.35)",
+                  borderRadius:"6px",letterSpacing:"1px",visibility:"hidden",pointerEvents:"none"}}>↕ SWAP IN</button>
               </div>
             ))}
           </div>

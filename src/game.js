@@ -1281,7 +1281,7 @@ function Game({uid,username,initData,onLogout,isGod=false}){
         document.body
       )}
 
-      <HamburgerNav tab={tab} setTab={setTabPersist} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>
+      {!isBattling&&<HamburgerNav tab={tab} setTab={setTabPersist} selectedCard={selectedCard} isGod={isGod} onLogout={onLogout}/>}
       {openingPack&&<PackAnim cards={openingPack} onDone={onPackDone} packId={selectedPack} collection={collection} onTradeDupes={onTradeDupes}/>}
     </div>
   );

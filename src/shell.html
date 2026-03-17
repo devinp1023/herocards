@@ -36,7 +36,7 @@ body{background:#060610;font-family:'Rajdhani',sans-serif;color:#d0d4e8}
 @keyframes epicPulse{0%,100%{box-shadow:0 0 8px #cc6dff44,0 0 0 2px #cc6dff00}50%{box-shadow:0 0 24px #cc6dffbb,0 0 0 2px #cc6dff33}}
 @keyframes particleBurst{0%{transform:scale(0) rotate(0deg);opacity:1}100%{transform:scale(3) rotate(360deg);opacity:0}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes attackRing{0%{transform:scale(1);opacity:0.9}100%{transform:scale(2.2);opacity:0}}
+@keyframes attackGlow{0%,100%{box-shadow:0 0 10px rgba(239,83,80,0.25)}50%{box-shadow:0 0 28px rgba(239,83,80,0.9),0 0 52px rgba(239,83,80,0.3)}}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:#060610}
 ::-webkit-scrollbar-thumb{background:#1a1a3a;border-radius:2px}
@@ -49,7 +49,7 @@ body{background:#060610;font-family:'Rajdhani',sans-serif;color:#d0d4e8}
 @keyframes flash-legendary{0%,100%{box-shadow:0 0 16px #ff980055,0 0 0 2px #b06000}50%{box-shadow:0 0 36px #ff9800ff,0 0 0 3.5px #ffc04a}}
 .sidebar{display:none!important}
 .bottom-nav{display:block!important}
-.hamburger-btn{position:fixed;top:12px;left:12px;z-index:200;background:#0d0d22;border:1px solid #1a1a3a;border-radius:10px;color:#4fc3f7;font-size:22px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.5);}
+.hamburger-btn{position:fixed;top:12px;left:12px;z-index:350;background:#0d0d22;border:1px solid #1a1a3a;border-radius:10px;color:#4fc3f7;font-size:22px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.5);}
 .hamburger-drawer{position:fixed;top:0;left:0;height:100vh;width:280px;background:#08081a;border-right:1px solid #12122a;z-index:160;transition:transform 0.3s ease;overflow-y:auto;padding-top:65px;}
 .hamburger-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:155;}
 @media(min-width:768px){
