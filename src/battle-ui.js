@@ -129,6 +129,12 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
   const [typeRevealed,setTypeRevealed]=useState(false);
   const [attackAnim,setAttackAnim]=useState(null); // 'player'|'ai'|null — who is lunging
   const [hitAnim,setHitAnim]=useState(null);       // 'player'|'ai'|null — who is shaking/flashing
+  const [swapOutSide,setSwapOutSide]=useState(null); // 'player'|'ai'|null
+  const [swapInSide,setSwapInSide]=useState(null);   // 'player'|'ai'|null
+  const [defeatAi,setDefeatAi]=useState(false);
+  const [defeatPlayer,setDefeatPlayer]=useState(false);
+  const [enterSide,setEnterSide]=useState(null);   // 'player'|'ai'|null
+  const [drawAnimId,setDrawAnimId]=useState(null); // card id for draw pop
   const refresh=()=>setTick(t=>t+1);
 
   // ── Responsive active-card sizing ───────────────────────────────
@@ -174,17 +180,27 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
     refresh();
     // Check bleed deaths
     if(p.active&&p.active.hp<=0){
-      resolveDefeat(p.active,p,log);
-      p.active=null;
-      if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
-      if(p.hand.length===0&&p.deck.length>0) drawCard(p);
-      setPhase('selecting'); refresh(); return;
+      setDefeatPlayer(true); refresh();
+      setTimeout(()=>{
+        setDefeatPlayer(false);
+        resolveDefeat(p.active,p,log);
+        p.active=null;
+        if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
+        if(p.hand.length===0&&p.deck.length>0) drawCard(p);
+        setPhase('selecting'); refresh();
+      },900);
+      return;
     }
     if(a.active&&a.active.hp<=0){
-      resolveDefeat(a.active,a,log);
-      a.active=null;
-      if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
-      aiReplace(); return;
+      setDefeatAi(true); refresh();
+      setTimeout(()=>{
+        setDefeatAi(false);
+        resolveDefeat(a.active,a,log);
+        a.active=null;
+        if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
+        aiReplace(); return;
+      },900);
+      return;
     }
     setRoundNum(n=>n+1); setPhase('ready'); refresh();
   };
@@ -200,50 +216,100 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
       a.active=next;
       applyEntryEffects(next,a,p,log);
       log.push({type:'CARD_ENTER',side:'ai',card:next.name});
-      setRoundNum(n=>n+1); setPhase('ready'); refresh();
-    },1400);
+      setEnterSide('ai'); refresh();
+      setTimeout(()=>{
+        setEnterSide(null);
+        setRoundNum(n=>n+1); setPhase('ready'); refresh();
+      },650);
+    },500);
+  };
+
+  const runFreePlayerAttack=()=>{
+    setPhase('attacking');
+    let aKilled=false;
+    setAttackAnim('player');
+    setTimeout(()=>{
+      const p=pRef.current; const a=aRef.current; const log=logRef.current;
+      setHitAnim('ai');
+      const r=executeAttack(p.active,a.active,p,a,log);
+      aKilled=r.killed||a.active.hp<=0;
+      setTypeRevealed(true); refresh();
+    },480);
+    setTimeout(()=>{
+      setAttackAnim(null); setHitAnim(null);
+      setTimeout(()=>{
+        if(aKilled){
+          setDefeatAi(true); refresh();
+          setTimeout(()=>{
+            setDefeatAi(false);
+            const p=pRef.current; const a=aRef.current; const log=logRef.current;
+            resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
+            a.active=null; refresh();
+            if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
+            aiReplace();
+          },900);
+        } else {
+          finishRound();
+        }
+      },300);
+    },950);
   };
 
   const handleAttack=()=>{
     if(phase!=='ready') return;
     const p=pRef.current; const a=aRef.current; const log=logRef.current;
     if(a.hand.length<5&&a.deck.length>0) drawCard(a);
-    executeAIProactiveSwap(a,p,log);
     setTypeRevealed(false);
     log.push({type:'ROUND_START',round:roundNum,playerHp:p.active.hp,playerMaxHp:p.active.maxHp,aiHp:a.active.hp,aiMaxHp:a.active.maxHp});
-    const pSpd=effSpeed(p.active); const aSpd=effSpeed(a.active);
-    const playerFirst=pSpd>=aSpd;
-    setPhase('attacking');
-    let pKilled=false; let aKilled=false;
 
-    const doResolve=()=>{
-      setTimeout(()=>{
-        if(!aKilled&&!pKilled){ finishRound(); return; }
-        if(aKilled&&pKilled){
-          resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
-          resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
-          a.active=null; p.active=null;
-          if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
-          if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
-          if(a.hand.length===0&&a.deck.length>0) drawCard(a);
-          const next=aiSelectCard(a.hand,'Brawler');
-          if(next){ a.hand=a.hand.filter(c=>c.id!==next.id); a.active=next; applyEntryEffects(next,a,p,log); }
-          if(p.hand.length===0&&p.deck.length>0) drawCard(p);
-          setPhase('selecting'); refresh(); return;
-        }
-        if(aKilled){
-          resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
-          a.active=null; refresh();
-          if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
-          aiReplace(); return;
-        }
-        resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
-        p.active=null; refresh();
-        if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
-        if(p.hand.length===0&&p.deck.length>0) drawCard(p);
-        setPhase('selecting'); refresh();
-      },300);
-    };
+    const doAttack=()=>{
+      const pSpd=effSpeed(p.active); const aSpd=effSpeed(a.active);
+      const playerFirst=pSpd>=aSpd;
+      setPhase('attacking');
+      let pKilled=false; let aKilled=false;
+
+      const doResolve=()=>{
+        setTimeout(()=>{
+          if(!aKilled&&!pKilled){ finishRound(); return; }
+          if(aKilled&&pKilled){
+            setDefeatAi(true); setDefeatPlayer(true); refresh();
+            setTimeout(()=>{
+              setDefeatAi(false); setDefeatPlayer(false);
+              resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
+              resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
+              a.active=null; p.active=null;
+              if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
+              if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
+              if(a.hand.length===0&&a.deck.length>0) drawCard(a);
+              const next=aiSelectCard(a.hand,'Brawler');
+              if(next){ a.hand=a.hand.filter(c=>c.id!==next.id); a.active=next; applyEntryEffects(next,a,p,log); }
+              if(p.hand.length===0&&p.deck.length>0) drawCard(p);
+              setPhase('selecting'); refresh();
+            },900);
+            return;
+          }
+          if(aKilled){
+            setDefeatAi(true); refresh();
+            setTimeout(()=>{
+              setDefeatAi(false);
+              resolveKill(p.active,p,a,log); resolveDefeat(a.active,a,log);
+              a.active=null; refresh();
+              if(a.hand.length===0&&a.deck.length===0){ endBattle('player'); return; }
+              aiReplace();
+            },900);
+            return;
+          }
+          setDefeatPlayer(true); refresh();
+          setTimeout(()=>{
+            setDefeatPlayer(false);
+            resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
+            p.active=null; refresh();
+            if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
+            if(p.hand.length===0&&p.deck.length>0) drawCard(p);
+            setPhase('selecting'); refresh();
+          },900);
+        },300);
+      };
 
     // ── Timing constants ──────────────────────────────────────────────
     const PEAK=480;   // ms from lunge start to impact
@@ -282,12 +348,26 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
             }
             refresh();
           },PEAK);
-          setTimeout(()=>{ setAttackAnim(null); setHitAnim(null); doResolve(); },END);
+              setTimeout(()=>{ setAttackAnim(null); setHitAnim(null); doResolve(); },END);
         },GAP);
       } else {
         doResolve();
       }
     },END);
+    }; // end doAttack
+
+    // ── AI proactive swap before round starts ─────────────────────────
+    const swapTarget=aiSwapTarget(a,p);
+    if(swapTarget){
+      setSwapOutSide('ai');
+      setTimeout(()=>{
+        executeAIProactiveSwap(a,p,log);
+        setSwapOutSide(null); setSwapInSide('ai'); refresh();
+        setTimeout(()=>{ setSwapInSide(null); runFreePlayerAttack(); },600);
+      },500);
+    } else {
+      doAttack();
+    }
   };
 
   const handleSelectCard=(card)=>{
@@ -297,64 +377,100 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
     p.active=card;
     applyEntryEffects(card,p,a,log);
     log.push({type:'CARD_ENTER',side:'player',card:card.name});
-    resolvePostRound(p,a,log);
-    setRoundNum(n=>n+1); setPhase('ready'); refresh();
+    setEnterSide('player'); refresh();
+    setTimeout(()=>{
+      setEnterSide(null);
+      resolvePostRound(p,a,log);
+      setRoundNum(n=>n+1); setPhase('ready'); refresh();
+    },650);
   };
 
   const runFreeAiAttack=()=>{
     setPhase('free_ai_attack');
     let pKilled=false;
-    setAttackAnim('ai');
-    setTimeout(()=>{
-      const p=pRef.current; const a=aRef.current; const log=logRef.current;
-      executeAIProactiveSwap(a,p,log);
-      setHitAnim('player');
-      const r=executeAttack(a.active,p.active,a,p,log);
-      pKilled=r.killed||p.active.hp<=0;
-      setTypeRevealed(true); refresh();
-    },480);
-    setTimeout(()=>{
-      setAttackAnim(null); setHitAnim(null);
+    const p=pRef.current; const a=aRef.current; const log=logRef.current;
+
+    const doFreeAttack=()=>{
+      setAttackAnim('ai');
       setTimeout(()=>{
         const p=pRef.current; const a=aRef.current; const log=logRef.current;
-        if(pKilled){
-          resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
-          p.active=null; refresh();
-          if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
-          if(p.hand.length===0&&p.deck.length>0) drawCard(p);
-          resolvePostRound(p,a,log); setRoundNum(n=>n+1); refresh();
-          setPhase('selecting');
-        } else {
-          finishRound();
-        }
-      },300);
-    },950);
+        setHitAnim('player');
+        const r=executeAttack(a.active,p.active,a,p,log);
+        pKilled=r.killed||p.active.hp<=0;
+        setTypeRevealed(true); refresh();
+      },480);
+      setTimeout(()=>{
+        setAttackAnim(null); setHitAnim(null);
+        setTimeout(()=>{
+          const p=pRef.current; const a=aRef.current; const log=logRef.current;
+          if(pKilled){
+            setDefeatPlayer(true); refresh();
+            setTimeout(()=>{
+              setDefeatPlayer(false);
+              resolveKill(a.active,a,p,log); resolveDefeat(p.active,p,log);
+              p.active=null; refresh();
+              if(p.hand.length===0&&p.deck.length===0){ endBattle('ai'); return; }
+              if(p.hand.length===0&&p.deck.length>0) drawCard(p);
+              resolvePostRound(p,a,log); setRoundNum(n=>n+1); refresh();
+              setPhase('selecting');
+            },900);
+          } else {
+            finishRound();
+          }
+        },300);
+      },950);
+    };
+
+    // If AI proactively swaps, both sides used a non-attack action — no free hit
+    const swapTarget=aiSwapTarget(a,p);
+    if(swapTarget){
+      setSwapOutSide('ai');
+      setTimeout(()=>{
+        executeAIProactiveSwap(a,p,log);
+        setSwapOutSide(null); setSwapInSide('ai'); refresh();
+        setTimeout(()=>{ setSwapInSide(null); finishRound(); },600);
+      },500);
+    } else {
+      doFreeAttack();
+    }
   };
 
   const handleDraw=()=>{
     if(phase!=='ready') return;
     const p=pRef.current; const a=aRef.current; const log=logRef.current;
     if(p.hand.length>=5||p.deck.length===0) return;
-    if(a.hand.length<5&&a.deck.length>0) drawCard(a);
+    // If AI also draws this turn, both sides used a non-attack action — no free hit
+    const aiDrew=a.hand.length<5&&a.deck.length>0;
+    if(aiDrew) drawCard(a);
     drawCard(p);
-    log.push({type:'PLAYER_DRAW',card:p.hand[p.hand.length-1].name});
-    setTypeRevealed(false); refresh();
-    runFreeAiAttack();
+    const newCard=p.hand[p.hand.length-1];
+    log.push({type:'PLAYER_DRAW',card:newCard.name});
+    setTypeRevealed(false);
+    setDrawAnimId(newCard.id);
+    setTimeout(()=>setDrawAnimId(null),600);
+    refresh();
+    if(aiDrew){ finishRound(); } else { runFreeAiAttack(); }
   };
 
   const handleSwap=(card)=>{
     if(phase!=='ready') return;
     const p=pRef.current; const a=aRef.current; const log=logRef.current;
     if(!p.active) return;
-    if(a.hand.length<5&&a.deck.length>0) drawCard(a);
-    const prev=p.active;
-    p.hand=p.hand.filter(c=>c.id!==card.id);
-    p.hand.push(prev);
-    p.active=card;
-    applyEntryEffects(card,p,a,log);
-    log.push({type:'PLAYER_SWAP',card:card.name,prev:prev.name});
-    setTypeRevealed(false); refresh();
-    runFreeAiAttack();
+    // If AI draws this turn, both sides used a non-attack action — no free hit
+    const aiDrew=a.hand.length<5&&a.deck.length>0;
+    if(aiDrew) drawCard(a);
+    setSwapOutSide('player');
+    setTimeout(()=>{
+      const prev=p.active;
+      p.hand=p.hand.filter(c=>c.id!==card.id);
+      p.hand.push(prev);
+      p.active=card;
+      applyEntryEffects(card,p,a,log);
+      log.push({type:'PLAYER_SWAP',card:card.name,prev:prev.name});
+      setTypeRevealed(false);
+      setSwapOutSide(null); setSwapInSide('player'); refresh();
+      setTimeout(()=>{ setSwapInSide(null); if(aiDrew){ finishRound(); } else { runFreeAiAttack(); } },600);
+    },500);
   };
 
   const p=pRef.current; const a=aRef.current;
@@ -418,7 +534,7 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
           <div ref={cardContainerRef} style={{flex:1,minHeight:0,position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
             {a.active?(
               <div style={{width:`${cardW}px`,height:`${Math.round(cardW*290/201)}px`,position:"relative","--sidebar-w":`calc(100vw - ${cardW}px)`,"--card-col":"1"}}>
-                <div className={attackAnim==='ai'?'lunge-down':hitAnim==='ai'?'card-hit':''}
+                <div className={attackAnim==='ai'?'lunge-down':hitAnim==='ai'?'card-hit':swapOutSide==='ai'?'card-swap-out-ai':swapInSide==='ai'?'card-swap-in-ai':defeatAi?'card-defeat-ai':enterSide==='ai'?'card-enter-ai':''}
                   style={{position:"absolute",inset:0}}>
                   <CardWrapper rarity={a.active.rarity}><HeroCard card={a.active} size="normal" fill/></CardWrapper>
                   {hitAnim==='ai'&&<div style={{position:"absolute",inset:0,borderRadius:"13px",background:"rgba(239,83,80,0.38)",pointerEvents:"none"}}/>}
@@ -450,7 +566,7 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
             {p.active?(
               <div style={{position:"relative"}}>
                 <div style={{width:`${cardW}px`,height:`${Math.round(cardW*290/201)}px`,position:"relative","--sidebar-w":`calc(100vw - ${cardW}px)`,"--card-col":"1"}}>
-                  <div className={attackAnim==='player'?'lunge-up':hitAnim==='player'?'card-hit':''}
+                  <div className={attackAnim==='player'?'lunge-up':hitAnim==='player'?'card-hit':swapOutSide==='player'?'card-swap-out-player':swapInSide==='player'?'card-swap-in-player':defeatPlayer?'card-defeat-player':enterSide==='player'?'card-enter-player':''}
                     style={{position:"absolute",inset:0}}>
                     <CardWrapper rarity={p.active.rarity}><HeroCard card={p.active} size="normal" fill/></CardWrapper>
                     {hitAnim==='player'&&<div style={{position:"absolute",inset:0,borderRadius:"13px",background:"rgba(239,83,80,0.38)",pointerEvents:"none"}}/>}
@@ -496,6 +612,7 @@ function BattleStage({playerDeck,aiDeck,tierInfo,onBattleEnd}){
             {p.hand.map(card=>(
               <div key={card.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",flexShrink:0}}>
                 <div onClick={needSelect?()=>handleSelectCard(card):undefined}
+                  className={card.id===drawAnimId?'card-draw-pop':''}
                   style={{width:"100px",cursor:needSelect?"pointer":"default",borderRadius:"9px",
                     outline:needSelect?"2px solid #4fc3f7":"none",outlineOffset:"2px",
                     opacity:needSelect?1:(phase==='ready'?1:0.6),transition:"opacity 0.2s,outline 0.2s",
